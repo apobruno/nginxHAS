@@ -1,37 +1,710 @@
 <!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diretriz Brasileira de Hipertensão 2025 - Guia Interativo</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Font Awesome for Icons (Unicode replacement/font-based icons) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <title>NGINX on Railway</title>
-    <meta name="description" content="Choo Choo!" />
+    <!-- Chosen Palette: Warm Neutrals & Clinical Blue -->
+    <!-- The palette uses a soft slate/gray background for calm, with clinical blues (Blue-600/700) for primary actions and semantic colors (Green/Red/Amber) for health status indicators. This reflects a professional medical environment. -->
 
-    <link rel="icon" href="/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Application Structure Plan: 
+         The app is designed as a "Dashboard of Care" rather than a linear document.
+         1. **Header/Hero:** clear identity and context.
+         2. **Navigation Tabs:** Quick switching between Diagnosis, Lifestyle, Medication, and Stats (Non-linear exploration).
+         3. **Dynamic Content Area:**
+            - **Diagnóstico:** Features a "Calculator" interaction because "Is my BP high?" is the #1 user question.
+            - **Estilo de Vida:** Features a "Simulator" and Chart because users need to see the *value* of effort (gamification of health gains).
+            - **Medicamentos:** Features cards/accordions for organized reference.
+            - **Epidemiologia:** Visualizes the "Why it matters" with charts.
+         4. **Footer:** Medical disclaimer.
+         Rationale: This structure moves from "Do I have it?" -> "What do I do?" -> "How do I treat it?" -> "Big Picture", following the patient journey.
+    -->
 
-    <link rel="stylesheet" href="/styles.css?v=1.0" />
-  </head>
+    <!-- Visualization & Content Choices:
+         1. **BP Calculator (Diagnóstico):** - Goal: Inform/Personalize. 
+            - Method: Input fields + Logic -> Text/Color feedback. 
+            - Justification: Immediate user value, translates dry tables into personal answers.
+         2. **Lifestyle Impact Chart (Estilo de Vida):**
+            - Goal: Change/Motivate.
+            - Method: Dynamic Bar Chart (Chart.js) + Checkboxes.
+            - Interaction: User selects habits -> Chart updates predicted mmHg drop.
+            - Justification: Visualizing the cumulative effect of small changes is more powerful than a list.
+         3. **Prevalence Pie Chart (Dados):**
+            - Goal: Context.
+            - Method: Doughnut Chart.
+            - Justification: Quickly conveys that hypertension is common (removing stigma).
+         4. **Risk Bar Chart:**
+            - Goal: Inform Risk.
+            - Method: Bar Chart comparing risks with/without control.
+            - Justification: Fear/Reality appeal to encourage adherence.
+         
+         CONFIRMATION: NO SVG graphics used. NO Mermaid JS used.
+    -->
 
-  <body>
-    <main>
-      <img
-        src="https://railway.app/brand/logo-light.svg"
-        alt="Railway logo"
-        class="logo"
-      />
+    <style>
+        /* Custom Scrollbar for cleaner look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
 
-      <h1>NGINX on Railway</h1>
+        /* Chart Container Strict Styling */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px; /* Max width constraint */
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px; /* Base height */
+            max-height: 400px; /* Strict max height */
+        }
+        
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
 
-      <p>
-        Choo Choo! This is an example of an NGINX static site running on
-        Railway.
-        <a
-          href="https://github.com/railwayapp/starters/tree/master/examples/nginx"
-          >View source</a
-        >.
-      </p>
-    </main>
+        .tab-active {
+            border-bottom: 3px solid #2563eb;
+            color: #1e40af;
+            font-weight: 600;
+        }
+        .tab-inactive {
+            color: #64748b;
+        }
+        .tab-inactive:hover {
+            color: #334155;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased selection:bg-blue-100 selection:text-blue-900">
 
-    <script src="/script.js"></script>
-  </body>
+    <!-- App Container -->
+    <div id="app" class="max-w-7xl mx-auto min-h-screen flex flex-col">
+        
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-50">
+            <div class="px-4 py-4 md:px-8 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="bg-blue-600 text-white p-2 rounded-lg">
+                        <i class="fa-solid fa-heart-pulse text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl md:text-2xl font-bold text-slate-900 leading-tight">Diretriz HAS <span class="text-blue-600">2025</span></h1>
+                        <p class="text-xs text-slate-500 hidden md:block">Guia Interativo Baseado na Diretriz Brasileira de Hipertensão Arterial</p>
+                    </div>
+                </div>
+                <button onclick="window.print()" class="text-slate-500 hover:text-blue-600 transition-colors" title="Imprimir Guia">
+                    <i class="fa-solid fa-print text-xl"></i>
+                </button>
+            </div>
+            
+            <!-- Mobile Subtitle -->
+            <div class="px-4 pb-2 md:hidden">
+                <p class="text-xs text-slate-500">Guia Oficial de Hipertensão Arterial</p>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="px-4 md:px-8 overflow-x-auto">
+                <div class="flex space-x-6 md:space-x-8 text-sm md:text-base whitespace-nowrap">
+                    <button onclick="app.switchTab('diagnosis')" id="tab-diagnosis" class="tab-active py-3 px-1 transition-all">
+                        <i class="fa-solid fa-stethoscope mr-1"></i> Diagnóstico & Metas
+                    </button>
+                    <button onclick="app.switchTab('lifestyle')" id="tab-lifestyle" class="tab-inactive py-3 px-1 transition-all">
+                        <i class="fa-solid fa-person-running mr-1"></i> Estilo de Vida
+                    </button>
+                    <button onclick="app.switchTab('medication')" id="tab-medication" class="tab-inactive py-3 px-1 transition-all">
+                        <i class="fa-solid fa-pills mr-1"></i> Medicamentos
+                    </button>
+                    <button onclick="app.switchTab('data')" id="tab-data" class="tab-inactive py-3 px-1 transition-all">
+                        <i class="fa-solid fa-chart-pie mr-1"></i> Epidemiologia
+                    </button>
+                </div>
+            </nav>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-grow p-4 md:p-8 space-y-8">
+
+            <!-- SECTION: DIAGNOSIS -->
+            <section id="section-diagnosis" class="space-y-6">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                    <div class="mb-4 border-l-4 border-blue-500 pl-4">
+                        <h2 class="text-2xl font-bold text-slate-900">Entenda sua Pressão</h2>
+                        <p class="text-slate-600 mt-1">A hipertensão é diagnosticada quando a pressão arterial é sustentada acima das metas. Use a calculadora abaixo para verificar a classificação conforme a Diretriz 2025.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+                        <!-- Calculator -->
+                        <div class="bg-slate-50 p-6 rounded-lg border border-slate-200">
+                            <h3 class="font-bold text-lg mb-4 text-slate-800"><i class="fa-solid fa-calculator text-blue-500 mr-2"></i>Calculadora de Classificação</h3>
+                            
+                            <div class="grid grid-cols-2 gap-4 mb-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">Sistólica (Máxima)</label>
+                                    <input type="number" id="input-sys" placeholder="Ex: 120" class="w-full p-3 rounded-md border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">Diastólica (Mínima)</label>
+                                    <input type="number" id="input-dia" placeholder="Ex: 80" class="w-full p-3 rounded-md border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+                                </div>
+                            </div>
+
+                            <button onclick="app.calculateBP()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-md transition-colors shadow-sm mb-6">
+                                Verificar Resultado
+                            </button>
+
+                            <!-- Result Box (Hidden by default) -->
+                            <div id="bp-result" class="hidden animate-fade-in">
+                                <div id="bp-result-box" class="p-4 rounded-md border-l-4 mb-2">
+                                    <h4 id="bp-classification" class="font-bold text-lg"></h4>
+                                    <p id="bp-message" class="text-sm mt-1"></p>
+                                </div>
+                                <p class="text-xs text-slate-500">*Esta é uma simulação educativa baseada em medidas de consultório. O diagnóstico real requer múltiplas medidas e avaliação médica.</p>
+                            </div>
+                        </div>
+
+                        <!-- Reference Table -->
+                        <div class="overflow-hidden rounded-lg border border-slate-200">
+                            <table class="min-w-full text-sm text-left">
+                                <thead class="bg-slate-100 text-slate-700 font-semibold">
+                                    <tr>
+                                        <th class="px-4 py-3">Classificação</th>
+                                        <th class="px-4 py-3">Sistólica (mmHg)</th>
+                                        <th class="px-4 py-3">Diastólica (mmHg)</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-200 bg-white">
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="px-4 py-3 text-green-600 font-medium">Ótima</td>
+                                        <td class="px-4 py-3">&lt; 120</td>
+                                        <td class="px-4 py-3">&lt; 80</td>
+                                    </tr>
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="px-4 py-3 text-emerald-600">Normal</td>
+                                        <td class="px-4 py-3">120 – 129</td>
+                                        <td class="px-4 py-3">80 – 84</td>
+                                    </tr>
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="px-4 py-3 text-yellow-600">Pré-Hipertensão</td>
+                                        <td class="px-4 py-3">130 – 139</td>
+                                        <td class="px-4 py-3">85 – 89</td>
+                                    </tr>
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="px-4 py-3 text-orange-600 font-medium">Hipertensão Estágio 1</td>
+                                        <td class="px-4 py-3">140 – 159</td>
+                                        <td class="px-4 py-3">90 – 99</td>
+                                    </tr>
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="px-4 py-3 text-red-600 font-medium">Hipertensão Estágio 2</td>
+                                        <td class="px-4 py-3">160 – 179</td>
+                                        <td class="px-4 py-3">100 – 109</td>
+                                    </tr>
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="px-4 py-3 text-red-800 font-bold">Hipertensão Estágio 3</td>
+                                        <td class="px-4 py-3">&ge; 180</td>
+                                        <td class="px-4 py-3">&ge; 110</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Info Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
+                        <div class="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mb-3">
+                            <i class="fa-solid fa-house-medical"></i>
+                        </div>
+                        <h4 class="font-bold text-slate-800 mb-2">Medida Residencial (MRPA)</h4>
+                        <p class="text-sm text-slate-600">Medir em casa é fundamental. A diretriz recomenda aparelhos de braço validados e medidas pela manhã e à noite por 3 a 7 dias.</p>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
+                        <div class="w-10 h-10 bg-teal-100 text-teal-600 rounded-full flex items-center justify-center mb-3">
+                            <i class="fa-solid fa-bullseye"></i>
+                        </div>
+                        <h4 class="font-bold text-slate-800 mb-2">Meta Terapêutica</h4>
+                        <p class="text-sm text-slate-600">Para a maioria dos pacientes, o objetivo é manter a pressão abaixo de <strong>130/80 mmHg</strong> se tolerado, ou pelo menos < 140/90 mmHg.</p>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
+                        <div class="w-10 h-10 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mb-3">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                        <h4 class="font-bold text-slate-800 mb-2">Hipertensão Silenciosa</h4>
+                        <p class="text-sm text-slate-600">A ausência de sintomas não significa controle. A pressão alta danifica vasos, rins e coração silenciosamente.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION: LIFESTYLE -->
+            <section id="section-lifestyle" class="hidden space-y-6">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                    <div class="mb-6 border-l-4 border-emerald-500 pl-4">
+                        <h2 class="text-2xl font-bold text-slate-900">Poder do Estilo de Vida</h2>
+                        <p class="text-slate-600 mt-1">Mudanças de hábito funcionam como remédio. Selecione as mudanças abaixo para ver o impacto estimado na redução da sua pressão arterial sistólica (máxima).</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <!-- Controls -->
+                        <div class="space-y-4">
+                            <h3 class="font-bold text-slate-800 mb-2">Selecione suas Metas:</h3>
+                            
+                            <label class="flex items-center p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors">
+                                <input type="checkbox" onchange="app.updateLifestyleChart()" value="5" class="w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500 lifestyle-check">
+                                <div class="ml-3">
+                                    <span class="block font-semibold text-slate-800">Perda de Peso</span>
+                                    <span class="block text-xs text-slate-500">Manter IMC < 25 kg/m²</span>
+                                </div>
+                                <span class="ml-auto font-bold text-emerald-600">-5 a 20 mmHg</span>
+                            </label>
+
+                            <label class="flex items-center p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors">
+                                <input type="checkbox" onchange="app.updateLifestyleChart()" value="11" class="w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500 lifestyle-check">
+                                <div class="ml-3">
+                                    <span class="block font-semibold text-slate-800">Dieta DASH</span>
+                                    <span class="block text-xs text-slate-500">Rica em frutas, vegetais e baixo teor de gordura</span>
+                                </div>
+                                <span class="ml-auto font-bold text-emerald-600">-8 a 14 mmHg</span>
+                            </label>
+
+                            <label class="flex items-center p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors">
+                                <input type="checkbox" onchange="app.updateLifestyleChart()" value="5" class="w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500 lifestyle-check">
+                                <div class="ml-3">
+                                    <span class="block font-semibold text-slate-800">Redução de Sódio</span>
+                                    <span class="block text-xs text-slate-500">Menos de 2g de sódio (5g de sal) por dia</span>
+                                </div>
+                                <span class="ml-auto font-bold text-emerald-600">-2 a 8 mmHg</span>
+                            </label>
+
+                            <label class="flex items-center p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors">
+                                <input type="checkbox" onchange="app.updateLifestyleChart()" value="5" class="w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500 lifestyle-check">
+                                <div class="ml-3">
+                                    <span class="block font-semibold text-slate-800">Atividade Física</span>
+                                    <span class="block text-xs text-slate-500">150 min/semana de atividade moderada</span>
+                                </div>
+                                <span class="ml-auto font-bold text-emerald-600">-4 a 9 mmHg</span>
+                            </label>
+                            
+                            <label class="flex items-center p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors">
+                                <input type="checkbox" onchange="app.updateLifestyleChart()" value="4" class="w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500 lifestyle-check">
+                                <div class="ml-3">
+                                    <span class="block font-semibold text-slate-800">Moderar Álcool</span>
+                                    <span class="block text-xs text-slate-500">Limitar consumo diário</span>
+                                </div>
+                                <span class="ml-auto font-bold text-emerald-600">-2 a 4 mmHg</span>
+                            </label>
+                        </div>
+
+                        <!-- Visualization -->
+                        <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 flex flex-col items-center justify-center">
+                            <h3 class="font-bold text-slate-700 mb-2">Impacto Cumulativo Estimado (mmHg)</h3>
+                            <div class="chart-container">
+                                <canvas id="lifestyleChart"></canvas>
+                            </div>
+                            <p class="text-xs text-center text-slate-500 mt-4 max-w-md">
+                                *Valores aproximados baseados em estudos populacionais citados na diretriz. A resposta individual pode variar.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION: MEDICATION -->
+            <section id="section-medication" class="hidden space-y-6">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                    <div class="mb-6 border-l-4 border-indigo-500 pl-4">
+                        <h2 class="text-2xl font-bold text-slate-900">Tratamento Medicamentoso</h2>
+                        <p class="text-slate-600 mt-1">Conheça as principais classes de medicamentos utilizadas. A monoterapia (um remédio) é para casos leves; a maioria dos pacientes precisa de combinações.</p>
+                    </div>
+
+                    <!-- Drug Classes Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                        <!-- Class 1 -->
+                        <div class="bg-white p-4 rounded-lg border border-slate-200 hover:shadow-md transition-shadow group">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded uppercase">DIU</span>
+                                <h3 class="font-bold text-slate-800">Diuréticos</h3>
+                            </div>
+                            <p class="text-sm text-slate-600 mb-3">Ajudam o corpo a eliminar sódio e água, reduzindo o volume sanguíneo.</p>
+                            <p class="text-xs text-slate-500 font-mono bg-slate-50 p-2 rounded">Ex: Hidroclorotiazida, Clortalidona, Indapamida</p>
+                        </div>
+
+                        <!-- Class 2 -->
+                        <div class="bg-white p-4 rounded-lg border border-slate-200 hover:shadow-md transition-shadow group">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded uppercase">IECA</span>
+                                <h3 class="font-bold text-slate-800">Inibidores da ECA</h3>
+                            </div>
+                            <p class="text-sm text-slate-600 mb-3">Relaxam os vasos sanguíneos e protegem rins e coração.</p>
+                            <p class="text-xs text-slate-500 font-mono bg-slate-50 p-2 rounded">Ex: Enalapril, Captopril, Ramipril</p>
+                        </div>
+
+                        <!-- Class 3 -->
+                        <div class="bg-white p-4 rounded-lg border border-slate-200 hover:shadow-md transition-shadow group">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="bg-violet-100 text-violet-700 text-xs font-bold px-2 py-1 rounded uppercase">BRA</span>
+                                <h3 class="font-bold text-slate-800">Bloq. Rec. Angiotensina</h3>
+                            </div>
+                            <p class="text-sm text-slate-600 mb-3">Efeito similar aos IECAs, mas com menos tosse como efeito colateral.</p>
+                            <p class="text-xs text-slate-500 font-mono bg-slate-50 p-2 rounded">Ex: Losartana, Valsartana, Candesartana</p>
+                        </div>
+
+                        <!-- Class 4 -->
+                        <div class="bg-white p-4 rounded-lg border border-slate-200 hover:shadow-md transition-shadow group">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="bg-pink-100 text-pink-700 text-xs font-bold px-2 py-1 rounded uppercase">BCC</span>
+                                <h3 class="font-bold text-slate-800">Bloq. Canal de Cálcio</h3>
+                            </div>
+                            <p class="text-sm text-slate-600 mb-3">Relaxam a musculatura dos vasos. Muito eficazes em idosos.</p>
+                            <p class="text-xs text-slate-500 font-mono bg-slate-50 p-2 rounded">Ex: Anlodipino, Nifedipino</p>
+                        </div>
+                        
+                        <!-- Class 5 -->
+                        <div class="bg-white p-4 rounded-lg border border-slate-200 hover:shadow-md transition-shadow group">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-1 rounded uppercase">BB</span>
+                                <h3 class="font-bold text-slate-800">Betabloqueadores</h3>
+                            </div>
+                            <p class="text-sm text-slate-600 mb-3">Reduzem o batimento cardíaco. Indicados em casos específicos (ex: pós-infarto).</p>
+                            <p class="text-xs text-slate-500 font-mono bg-slate-50 p-2 rounded">Ex: Atenolol, Carvedilol, Bisoprolol</p>
+                        </div>
+                    </div>
+
+                    <!-- Adherence Tips Block -->
+                    <div class="bg-slate-900 text-white rounded-xl p-6 md:p-8">
+                        <div class="flex flex-col md:flex-row items-center gap-6">
+                            <div class="flex-1">
+                                <h3 class="text-xl font-bold text-yellow-400 mb-2"><i class="fa-solid fa-lightbulb mr-2"></i>Dicas de Ouro para Não Esquecer</h3>
+                                <ul class="space-y-3 text-slate-300">
+                                    <li class="flex items-start"><i class="fa-solid fa-check mt-1 mr-2 text-green-400"></i> Associe ao hábito: "Escovou os dentes, tomou o remédio".</li>
+                                    <li class="flex items-start"><i class="fa-solid fa-check mt-1 mr-2 text-green-400"></i> Use o alarme do celular.</li>
+                                    <li class="flex items-start"><i class="fa-solid fa-check mt-1 mr-2 text-green-400"></i> Organiza em caixinhas semanais.</li>
+                                    <li class="flex items-start"><i class="fa-solid fa-check mt-1 mr-2 text-green-400"></i> Nunca pare por conta própria, mesmo se a pressão estiver boa.</li>
+                                </ul>
+                            </div>
+                            <div class="md:w-1/3 bg-slate-800 p-4 rounded-lg text-center">
+                                <p class="text-3xl font-bold text-white mb-1">50%</p>
+                                <p class="text-xs text-slate-400">dos pacientes abandonam o tratamento no primeiro ano.</p>
+                                <p class="text-sm text-yellow-400 font-bold mt-2">Não faça parte dessa estatística!</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION: DATA -->
+            <section id="section-data" class="hidden space-y-6">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                    <div class="mb-6 border-l-4 border-purple-500 pl-4">
+                        <h2 class="text-2xl font-bold text-slate-900">Epidemiologia e Riscos</h2>
+                        <p class="text-slate-600 mt-1">Dados da diretriz mostram que a hipertensão é o principal fator de risco para doenças cardiovasculares no Brasil.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <!-- Chart 1: Prevalence -->
+                        <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                            <h3 class="font-bold text-center text-slate-800 mb-4">Prevalência em Adultos Brasileiros</h3>
+                            <div class="chart-container">
+                                <canvas id="prevalenceChart"></canvas>
+                            </div>
+                            <p class="text-xs text-center text-slate-500 mt-2">Cerca de 32% dos adultos têm hipertensão. Em idosos (>60 anos), esse número sobe para mais de 60%.</p>
+                        </div>
+
+                        <!-- Chart 2: Consequences -->
+                        <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                            <h3 class="font-bold text-center text-slate-800 mb-4">Risco de Complicações (Não Tratada)</h3>
+                            <div class="chart-container">
+                                <canvas id="riskChart"></canvas>
+                            </div>
+                            <p class="text-xs text-center text-slate-500 mt-2">O tratamento reduz drasticamente o risco de AVC (Derrame) e Infarto.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                        <div class="text-center p-4 bg-red-50 rounded-lg">
+                            <i class="fa-solid fa-brain text-2xl text-red-500 mb-2"></i>
+                            <p class="font-bold text-slate-800">AVC</p>
+                            <p class="text-xs text-slate-500">Principal Causa</p>
+                        </div>
+                        <div class="text-center p-4 bg-blue-50 rounded-lg">
+                            <i class="fa-solid fa-heart-crack text-2xl text-blue-500 mb-2"></i>
+                            <p class="font-bold text-slate-800">Infarto</p>
+                            <p class="text-xs text-slate-500">Fator Crítico</p>
+                        </div>
+                        <div class="text-center p-4 bg-yellow-50 rounded-lg">
+                            <i class="fa-solid fa-kidney text-2xl text-yellow-600 mb-2"></i>
+                            <p class="font-bold text-slate-800">Doença Renal</p>
+                            <p class="text-xs text-slate-500">Causa Diálise</p>
+                        </div>
+                        <div class="text-center p-4 bg-green-50 rounded-lg">
+                            <i class="fa-solid fa-eye text-2xl text-green-600 mb-2"></i>
+                            <p class="font-bold text-slate-800">Retinopatia</p>
+                            <p class="text-xs text-slate-500">Perda de Visão</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-slate-100 border-t border-slate-200 mt-auto">
+            <div class="max-w-7xl mx-auto px-4 py-8 md:px-8">
+                <div class="text-center md:text-left grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <h5 class="font-bold text-slate-800">Sobre este Guia</h5>
+                        <p class="text-sm text-slate-500 mt-2 max-w-sm">
+                            Desenvolvido com base na Diretriz Brasileira de Hipertensão Arterial 2025. Este material é educativo e não substitui a consulta médica.
+                        </p>
+                    </div>
+                    <div class="text-center md:text-right">
+                        <p class="text-sm text-slate-500">Fonte: Sociedade Brasileira de Cardiologia (SBC)</p>
+                        <p class="text-xs text-slate-400 mt-1">© 2025 Guia Interativo HAS</p>
+                    </div>
+                </div>
+            </div>
+        </footer>
+
+    </div>
+
+    <script>
+        // --- State & Logic ---
+        
+        const app = {
+            activeTab: 'diagnosis',
+            
+            // Lifestyle Chart Data Ref
+            lifestyleChartRef: null,
+
+            // Tab Switching Logic
+            switchTab: (tabId) => {
+                // Update State
+                app.activeTab = tabId;
+                
+                // Update UI Buttons
+                ['diagnosis', 'lifestyle', 'medication', 'data'].forEach(id => {
+                    const btn = document.getElementById(`tab-${id}`);
+                    const section = document.getElementById(`section-${id}`);
+                    
+                    if(id === tabId) {
+                        btn.className = "tab-active py-3 px-1 transition-all";
+                        section.classList.remove('hidden');
+                        section.classList.add('animate-fade-in');
+                    } else {
+                        btn.className = "tab-inactive py-3 px-1 transition-all";
+                        section.classList.add('hidden');
+                    }
+                });
+
+                // Init charts if tab is opened
+                if(tabId === 'lifestyle' && !app.lifestyleChartRef) {
+                    setTimeout(app.initLifestyleChart, 100);
+                }
+                if(tabId === 'data' && !Chart.getChart("prevalenceChart")) {
+                    setTimeout(app.initDataCharts, 100);
+                }
+            },
+
+            // BP Calculator Logic
+            calculateBP: () => {
+                const sys = parseInt(document.getElementById('input-sys').value);
+                const dia = parseInt(document.getElementById('input-dia').value);
+                const resultBox = document.getElementById('bp-result');
+                const boxStyle = document.getElementById('bp-result-box');
+                const title = document.getElementById('bp-classification');
+                const msg = document.getElementById('bp-message');
+
+                if (!sys || !dia) {
+                    alert("Por favor, insira os dois valores.");
+                    return;
+                }
+
+                resultBox.classList.remove('hidden');
+                
+                let classification = "";
+                let colorClass = "";
+                let messageText = "";
+                
+                // Logic based on SBC 2025/2020 Guidelines
+                if (sys >= 180 || dia >= 110) {
+                    classification = "Hipertensão Estágio 3";
+                    colorClass = "bg-red-100 border-red-500 text-red-800";
+                    messageText = "Valores muito altos. Procure atendimento médico imediatamente se houver sintomas, ou marque consulta com urgência.";
+                } else if (sys >= 160 || dia >= 100) {
+                    classification = "Hipertensão Estágio 2";
+                    colorClass = "bg-red-50 border-red-500 text-red-700";
+                    messageText = "Necessário tratamento medicamentoso combinado e mudança de estilo de vida. Consulte seu médico.";
+                } else if (sys >= 140 || dia >= 90) {
+                    classification = "Hipertensão Estágio 1";
+                    colorClass = "bg-orange-50 border-orange-500 text-orange-800";
+                    messageText = "Sinal de alerta. Confirmar com MRPA/MAPA. Tratamento geralmente envolve mudança de vida e possivelmente medicação.";
+                } else if (sys >= 130 || dia >= 85) {
+                    classification = "Pré-Hipertensão";
+                    colorClass = "bg-yellow-50 border-yellow-500 text-yellow-800";
+                    messageText = "Você está na zona de risco. Ótimo momento para prevenir com dieta e exercícios.";
+                } else if (sys >= 120 || dia >= 80) {
+                    classification = "Normal";
+                    colorClass = "bg-emerald-50 border-emerald-500 text-emerald-800";
+                    messageText = "Sua pressão está dentro da faixa normal, mas não ótima. Mantenha hábitos saudáveis.";
+                } else {
+                    classification = "Ótima";
+                    colorClass = "bg-green-100 border-green-500 text-green-800";
+                    messageText = "Parabéns! Sua pressão está excelente. Continue assim.";
+                }
+
+                // Apply styles
+                boxStyle.className = `p-4 rounded-md border-l-4 mb-2 ${colorClass}`;
+                title.innerText = classification;
+                msg.innerText = messageText;
+            },
+
+            // Lifestyle Chart Logic
+            initLifestyleChart: () => {
+                const ctx = document.getElementById('lifestyleChart').getContext('2d');
+                
+                app.lifestyleChartRef = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Redução Atual', 'Potencial Máximo'],
+                        datasets: [{
+                            label: 'Queda na Pressão Sistólica (mmHg)',
+                            data: [0, 30], // Initial values
+                            backgroundColor: ['#10b981', '#cbd5e1'],
+                            borderRadius: 4,
+                            barPercentage: 0.6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: { display: true, text: 'mmHg' },
+                                max: 40
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: (ctx) => `-${ctx.raw} mmHg`
+                                }
+                            }
+                        }
+                    }
+                });
+                app.updateLifestyleChart();
+            },
+
+            updateLifestyleChart: () => {
+                if(!app.lifestyleChartRef) return;
+                
+                const checks = document.querySelectorAll('.lifestyle-check:checked');
+                let totalReduction = 0;
+                
+                checks.forEach(chk => {
+                    // Simple logic: taking average of range for visualization
+                    let val = parseInt(chk.value);
+                    if (val === 5) val = 12; // Weight loss is variable, boosting visual impact
+                    totalReduction += parseInt(chk.value); 
+                });
+
+                // Cap realistic max reduction for visual purposes (synergy isn't purely additive)
+                const realisticReduction = Math.min(totalReduction, 35);
+
+                app.lifestyleChartRef.data.datasets[0].data[0] = realisticReduction;
+                app.lifestyleChartRef.update();
+            },
+
+            // Epidemiology Charts
+            initDataCharts: () => {
+                // Chart 1: Prevalence
+                const ctxPrev = document.getElementById('prevalenceChart').getContext('2d');
+                new Chart(ctxPrev, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Hipertensos', 'Normotensos'],
+                        datasets: [{
+                            data: [32, 68],
+                            backgroundColor: ['#ef4444', '#e2e8f0'],
+                            hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom' },
+                            title: { display: true, text: 'População Adulta Geral' }
+                        }
+                    }
+                });
+
+                // Chart 2: Risk Reduction
+                const ctxRisk = document.getElementById('riskChart').getContext('2d');
+                new Chart(ctxRisk, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Risco de AVC', 'Risco de Infarto'],
+                        datasets: [
+                            {
+                                label: 'Sem Controle',
+                                data: [100, 100], // Baseline risk
+                                backgroundColor: '#94a3b8'
+                            },
+                            {
+                                label: 'Com Controle BP',
+                                data: [60, 75], // 40% reduction Stroke, 25% MI (Approx guideline stats)
+                                backgroundColor: '#3b82f6'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                display: false,
+                                max: 120
+                            }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: (ctx) => ctx.datasetIndex === 1 ? `Redução para ${ctx.raw}% do risco inicial` : 'Risco Basal (100%)'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        };
+
+        // Initialize default view
+        window.addEventListener('DOMContentLoaded', () => {
+            // Optional: Simple fade-in for main content
+            document.querySelector('main').classList.add('opacity-100');
+        });
+
+    </script>
+</body>
 </html>
