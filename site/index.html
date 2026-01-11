@@ -1,710 +1,1176 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Diretriz Brasileira de Hipertensão 2025 - Guia Interativo</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Font Awesome for Icons (Unicode replacement/font-based icons) -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Ritual Chains — Protótipo Completo (5×5)</title>
+  <style>
+    :root{
+      --bg:#0e0f12; --panel:#151821; --panel2:#10131a; --text:#e9ecf1; --muted:#9aa3b2;
+      --line:#2a3142; --accent:#7aa2ff; --good:#7CFFB2; --bad:#ff7a7a; --warn:#ffd27a;
+      --chip:#0f1420;
+      --tipbg:#0a0d14; --tipline:#1e2637;
+      --overlay: rgba(0,0,0,.6);
+    }
+    body{ margin:16px; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:var(--bg); color:var(--text); }
+    h1{ font-size:18px; margin:0; }
+    .topbar{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:12px; margin-bottom:10px;
+    }
+    .topbar .right{ display:flex; gap:10px; align-items:center; }
+    .helpBtn{
+      width:38px; height:38px; border-radius:12px;
+      display:inline-flex; align-items:center; justify-content:center;
+      border:1px solid var(--line); background:#111826; color:var(--text);
+      cursor:pointer;
+      font-weight:900;
+    }
+    .helpBtn:hover{ border-color:#3a4660; }
 
-    <!-- Chosen Palette: Warm Neutrals & Clinical Blue -->
-    <!-- The palette uses a soft slate/gray background for calm, with clinical blues (Blue-600/700) for primary actions and semantic colors (Green/Red/Amber) for health status indicators. This reflects a professional medical environment. -->
+    .panel{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:12px; }
+    .panel h2{ margin:0 0 8px; font-size:14px; color:#d8ddff; }
+    .stats{ display:flex; gap:10px; flex-wrap:wrap; color:var(--muted); font-size:12px; margin-bottom:10px; }
+    .pill{ display:inline-flex; gap:8px; align-items:center; padding:6px 10px; border-radius:999px;
+      border:1px solid var(--line); background:var(--chip); color:var(--muted); font-size:12px; }
+    .pill b{ color:var(--text); }
+    button{
+      background:#111826; color:var(--text); border:1px solid var(--line);
+      padding:10px 12px; border-radius:12px; cursor:pointer;
+    }
+    button:hover{ border-color:#3a4660; }
+    button.primary{ background:var(--accent); color:#081022; border-color:#90b2ff; font-weight:800; }
+    button.danger{ background:#2a1416; border-color:#5a2a32; color:#ffb3b3; }
+    button.ghost{ background:transparent; }
+    button:disabled{ opacity:.5; cursor:not-allowed; }
+    .hint{ color:var(--muted); font-size:12px; margin-top:6px; }
+    .cols{ display:flex; gap:12px; flex-wrap:wrap; }
+    .col{ flex: 1 1 520px; min-width: 330px; }
 
-    <!-- Application Structure Plan: 
-         The app is designed as a "Dashboard of Care" rather than a linear document.
-         1. **Header/Hero:** clear identity and context.
-         2. **Navigation Tabs:** Quick switching between Diagnosis, Lifestyle, Medication, and Stats (Non-linear exploration).
-         3. **Dynamic Content Area:**
-            - **Diagnóstico:** Features a "Calculator" interaction because "Is my BP high?" is the #1 user question.
-            - **Estilo de Vida:** Features a "Simulator" and Chart because users need to see the *value* of effort (gamification of health gains).
-            - **Medicamentos:** Features cards/accordions for organized reference.
-            - **Epidemiologia:** Visualizes the "Why it matters" with charts.
-         4. **Footer:** Medical disclaimer.
-         Rationale: This structure moves from "Do I have it?" -> "What do I do?" -> "How do I treat it?" -> "Big Picture", following the patient journey.
-    -->
+    .grid{
+      display:grid; grid-template-columns: repeat(5, 78px); grid-template-rows: repeat(5, 78px);
+      gap:8px; padding:8px; background:var(--panel2); border-radius:14px; border:1px solid var(--line);
+    }
+    .cell{
+      position:relative; border:1px dashed #2c3550; border-radius:14px;
+      display:flex; align-items:center; justify-content:center; text-align:center;
+      background:rgba(255,255,255,0.03);
+      user-select:none;
+      overflow: visible;
+    }
+    .cell.target{ border-style:solid; border-color:#5c4bff; box-shadow:0 0 0 1px rgba(92,75,255,.25) inset; }
+    .cell.blocked{
+      border-style:solid; border-color:#5a2a32;
+      background:rgba(255, 122, 122, .08);
+    }
+    .cell .coord{ position:absolute; top:6px; left:8px; font-size:10px; color:#6e7891; }
+    .cell .badge{ position:absolute; bottom:6px; right:8px; font-size:10px; color:#6e7891; }
+    .cell .mini{ font-size:11px; color:var(--muted); }
+    .cell .blockedMark{
+      position:absolute; inset:0;
+      display:flex; align-items:center; justify-content:center;
+      font-weight:1000; font-size:22px; color:rgba(255, 122, 122, .65);
+      pointer-events:none;
+    }
 
-    <!-- Visualization & Content Choices:
-         1. **BP Calculator (Diagnóstico):** - Goal: Inform/Personalize. 
-            - Method: Input fields + Logic -> Text/Color feedback. 
-            - Justification: Immediate user value, translates dry tables into personal answers.
-         2. **Lifestyle Impact Chart (Estilo de Vida):**
-            - Goal: Change/Motivate.
-            - Method: Dynamic Bar Chart (Chart.js) + Checkboxes.
-            - Interaction: User selects habits -> Chart updates predicted mmHg drop.
-            - Justification: Visualizing the cumulative effect of small changes is more powerful than a list.
-         3. **Prevalence Pie Chart (Dados):**
-            - Goal: Context.
-            - Method: Doughnut Chart.
-            - Justification: Quickly conveys that hypertension is common (removing stigma).
-         4. **Risk Bar Chart:**
-            - Goal: Inform Risk.
-            - Method: Bar Chart comparing risks with/without control.
-            - Justification: Fear/Reality appeal to encourage adherence.
-         
-         CONFIRMATION: NO SVG graphics used. NO Mermaid JS used.
-    -->
+    .card{
+      width: 150px; border-radius:14px; border:1px solid var(--line);
+      background:#0f1420; padding:10px; cursor:pointer;
+      display:flex; flex-direction:column; gap:6px;
+      position: relative;
+      overflow: visible;
+    }
+    .card:hover{ border-color:#3a4660; }
+    .card.selected{ outline:2px solid var(--accent); }
+    .card .top{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
+    .tag{ font-size:10px; padding:3px 8px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+    .tag.rune{ border-color:#2f4a3a; color:#aef1c7; }
+    .tag.concept{ border-color:#4a3a2f; color:#ffd9ae; }
+    .title{ font-weight:900; letter-spacing:.3px; }
+    .sub{ font-size:12px; color:var(--muted); }
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size:12px; }
+    .hand{ display:flex; gap:10px; flex-wrap:wrap; }
+    .log{ white-space:pre-wrap; font-size:12px; color:#d9def0; background:#0a0d14; border:1px solid #1e2637; border-radius:14px; padding:10px; max-height:380px; overflow:auto; }
+    .small{ font-size:11px; color:var(--muted); }
+    .kbd{ display:inline-block; padding:1px 6px; border:1px solid var(--line); border-radius:6px; background:#0c1018; color:#cfd6e6; font-size:11px; }
 
-    <style>
-        /* Custom Scrollbar for cleaner look */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #f1f5f9; 
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1; 
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8; 
-        }
+    /* Tooltip */
+    [data-tip] { position: relative; }
+    [data-tip]:hover::after{
+      content: attr(data-tip);
+      position: absolute;
+      z-index: 50;
+      left: 50%;
+      bottom: calc(100% + 8px);
+      transform: translateX(-50%);
+      background: var(--tipbg);
+      color: var(--text);
+      border: 1px solid var(--tipline);
+      border-radius: 10px;
+      padding: 8px 10px;
+      width: 260px;
+      white-space: pre-wrap;
+      font-size: 12px;
+      line-height: 1.25;
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+      pointer-events: none;
+    }
+    [data-tip]:hover::before{
+      content: "";
+      position: absolute;
+      z-index: 51;
+      left: 50%;
+      bottom: calc(100% + 2px);
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: var(--tipline);
+      pointer-events: none;
+    }
 
-        /* Chart Container Strict Styling */
-        .chart-container {
-            position: relative;
-            width: 100%;
-            max-width: 600px; /* Max width constraint */
-            margin-left: auto;
-            margin-right: auto;
-            height: 300px; /* Base height */
-            max-height: 400px; /* Strict max height */
-        }
-        
-        @media (min-width: 768px) {
-            .chart-container {
-                height: 350px;
-            }
-        }
-
-        .tab-active {
-            border-bottom: 3px solid #2563eb;
-            color: #1e40af;
-            font-weight: 600;
-        }
-        .tab-inactive {
-            color: #64748b;
-        }
-        .tab-inactive:hover {
-            color: #334155;
-        }
-    </style>
+    /* Modals */
+    .modalOverlay{
+      position:fixed; inset:0; background:var(--overlay);
+      display:none; align-items:center; justify-content:center;
+      z-index: 200;
+      padding: 18px;
+    }
+    .modal{
+      width:min(820px, 96vw);
+      background: #0a0d14;
+      border:1px solid #1e2637;
+      border-radius:16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.55);
+      overflow:hidden;
+    }
+    .modalHeader{
+      padding: 14px 16px;
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      border-bottom:1px solid #1e2637;
+      background: #0d111a;
+    }
+    .modalHeader h3{ margin:0; font-size:14px; color:#d8ddff; }
+    .modalBody{ padding: 14px 16px; color:#d9def0; font-size:13px; line-height:1.35; }
+    .modalFooter{
+      padding: 12px 16px;
+      border-top:1px solid #1e2637;
+      display:flex; justify-content:flex-end; gap:10px; flex-wrap:wrap;
+      background:#0d111a;
+    }
+    .rewardGrid{
+      display:grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .rewardCard{
+      border:1px solid #1e2637;
+      background:#0f1420;
+      border-radius:14px;
+      padding: 12px;
+      cursor:pointer;
+      min-height: 120px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+    .rewardCard:hover{ border-color:#3a4660; }
+    .rewardTitle{ font-weight:900; color:#e9ecf1; }
+    .rewardDesc{ color:#b7bfd2; font-size:12px; white-space:pre-wrap; }
+    .rewardTag{
+      align-self:flex-start;
+      font-size:10px;
+      padding:3px 8px;
+      border-radius:999px;
+      border:1px solid #2a3142;
+      color:#9aa3b2;
+    }
+    .rewardTag.common{ border-color:#2f4a3a; color:#aef1c7; }
+    .rewardTag.uncommon{ border-color:#4a3a2f; color:#ffd9ae; }
+    .rewardTag.rare{ border-color:#3b2a55; color:#d6c7ff; }
+    .rewardTag.mythic{ border-color:#5a2a32; color:#ffb3b3; }
+    .muted{ color:var(--muted); }
+  </style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans antialiased selection:bg-blue-100 selection:text-blue-900">
+<body>
+  <div class="topbar">
+    <h1>Ritual Chains — Protótipo Completo (5×5)</h1>
+    <div class="right">
+      <button id="helpBtn" class="helpBtn" title="Help">?</button>
+    </div>
+  </div>
 
-    <!-- App Container -->
-    <div id="app" class="max-w-7xl mx-auto min-h-screen flex flex-col">
-        
-        <!-- Header -->
-        <header class="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-50">
-            <div class="px-4 py-4 md:px-8 flex justify-between items-center">
-                <div class="flex items-center gap-3">
-                    <div class="bg-blue-600 text-white p-2 rounded-lg">
-                        <i class="fa-solid fa-heart-pulse text-xl"></i>
-                    </div>
-                    <div>
-                        <h1 class="text-xl md:text-2xl font-bold text-slate-900 leading-tight">Diretriz HAS <span class="text-blue-600">2025</span></h1>
-                        <p class="text-xs text-slate-500 hidden md:block">Guia Interativo Baseado na Diretriz Brasileira de Hipertensão Arterial</p>
-                    </div>
-                </div>
-                <button onclick="window.print()" class="text-slate-500 hover:text-blue-600 transition-colors" title="Imprimir Guia">
-                    <i class="fa-solid fa-print text-xl"></i>
-                </button>
-            </div>
-            
-            <!-- Mobile Subtitle -->
-            <div class="px-4 pb-2 md:hidden">
-                <p class="text-xs text-slate-500">Guia Oficial de Hipertensão Arterial</p>
-            </div>
-
-            <!-- Navigation -->
-            <nav class="px-4 md:px-8 overflow-x-auto">
-                <div class="flex space-x-6 md:space-x-8 text-sm md:text-base whitespace-nowrap">
-                    <button onclick="app.switchTab('diagnosis')" id="tab-diagnosis" class="tab-active py-3 px-1 transition-all">
-                        <i class="fa-solid fa-stethoscope mr-1"></i> Diagnóstico & Metas
-                    </button>
-                    <button onclick="app.switchTab('lifestyle')" id="tab-lifestyle" class="tab-inactive py-3 px-1 transition-all">
-                        <i class="fa-solid fa-person-running mr-1"></i> Estilo de Vida
-                    </button>
-                    <button onclick="app.switchTab('medication')" id="tab-medication" class="tab-inactive py-3 px-1 transition-all">
-                        <i class="fa-solid fa-pills mr-1"></i> Medicamentos
-                    </button>
-                    <button onclick="app.switchTab('data')" id="tab-data" class="tab-inactive py-3 px-1 transition-all">
-                        <i class="fa-solid fa-chart-pie mr-1"></i> Epidemiologia
-                    </button>
-                </div>
-            </nav>
-        </header>
-
-        <!-- Main Content -->
-        <main class="flex-grow p-4 md:p-8 space-y-8">
-
-            <!-- SECTION: DIAGNOSIS -->
-            <section id="section-diagnosis" class="space-y-6">
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-                    <div class="mb-4 border-l-4 border-blue-500 pl-4">
-                        <h2 class="text-2xl font-bold text-slate-900">Entenda sua Pressão</h2>
-                        <p class="text-slate-600 mt-1">A hipertensão é diagnosticada quando a pressão arterial é sustentada acima das metas. Use a calculadora abaixo para verificar a classificação conforme a Diretriz 2025.</p>
-                    </div>
-
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-                        <!-- Calculator -->
-                        <div class="bg-slate-50 p-6 rounded-lg border border-slate-200">
-                            <h3 class="font-bold text-lg mb-4 text-slate-800"><i class="fa-solid fa-calculator text-blue-500 mr-2"></i>Calculadora de Classificação</h3>
-                            
-                            <div class="grid grid-cols-2 gap-4 mb-6">
-                                <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-1">Sistólica (Máxima)</label>
-                                    <input type="number" id="input-sys" placeholder="Ex: 120" class="w-full p-3 rounded-md border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-1">Diastólica (Mínima)</label>
-                                    <input type="number" id="input-dia" placeholder="Ex: 80" class="w-full p-3 rounded-md border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
-                                </div>
-                            </div>
-
-                            <button onclick="app.calculateBP()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-md transition-colors shadow-sm mb-6">
-                                Verificar Resultado
-                            </button>
-
-                            <!-- Result Box (Hidden by default) -->
-                            <div id="bp-result" class="hidden animate-fade-in">
-                                <div id="bp-result-box" class="p-4 rounded-md border-l-4 mb-2">
-                                    <h4 id="bp-classification" class="font-bold text-lg"></h4>
-                                    <p id="bp-message" class="text-sm mt-1"></p>
-                                </div>
-                                <p class="text-xs text-slate-500">*Esta é uma simulação educativa baseada em medidas de consultório. O diagnóstico real requer múltiplas medidas e avaliação médica.</p>
-                            </div>
-                        </div>
-
-                        <!-- Reference Table -->
-                        <div class="overflow-hidden rounded-lg border border-slate-200">
-                            <table class="min-w-full text-sm text-left">
-                                <thead class="bg-slate-100 text-slate-700 font-semibold">
-                                    <tr>
-                                        <th class="px-4 py-3">Classificação</th>
-                                        <th class="px-4 py-3">Sistólica (mmHg)</th>
-                                        <th class="px-4 py-3">Diastólica (mmHg)</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-slate-200 bg-white">
-                                    <tr class="hover:bg-slate-50">
-                                        <td class="px-4 py-3 text-green-600 font-medium">Ótima</td>
-                                        <td class="px-4 py-3">&lt; 120</td>
-                                        <td class="px-4 py-3">&lt; 80</td>
-                                    </tr>
-                                    <tr class="hover:bg-slate-50">
-                                        <td class="px-4 py-3 text-emerald-600">Normal</td>
-                                        <td class="px-4 py-3">120 – 129</td>
-                                        <td class="px-4 py-3">80 – 84</td>
-                                    </tr>
-                                    <tr class="hover:bg-slate-50">
-                                        <td class="px-4 py-3 text-yellow-600">Pré-Hipertensão</td>
-                                        <td class="px-4 py-3">130 – 139</td>
-                                        <td class="px-4 py-3">85 – 89</td>
-                                    </tr>
-                                    <tr class="hover:bg-slate-50">
-                                        <td class="px-4 py-3 text-orange-600 font-medium">Hipertensão Estágio 1</td>
-                                        <td class="px-4 py-3">140 – 159</td>
-                                        <td class="px-4 py-3">90 – 99</td>
-                                    </tr>
-                                    <tr class="hover:bg-slate-50">
-                                        <td class="px-4 py-3 text-red-600 font-medium">Hipertensão Estágio 2</td>
-                                        <td class="px-4 py-3">160 – 179</td>
-                                        <td class="px-4 py-3">100 – 109</td>
-                                    </tr>
-                                    <tr class="hover:bg-slate-50">
-                                        <td class="px-4 py-3 text-red-800 font-bold">Hipertensão Estágio 3</td>
-                                        <td class="px-4 py-3">&ge; 180</td>
-                                        <td class="px-4 py-3">&ge; 110</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Info Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
-                        <div class="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mb-3">
-                            <i class="fa-solid fa-house-medical"></i>
-                        </div>
-                        <h4 class="font-bold text-slate-800 mb-2">Medida Residencial (MRPA)</h4>
-                        <p class="text-sm text-slate-600">Medir em casa é fundamental. A diretriz recomenda aparelhos de braço validados e medidas pela manhã e à noite por 3 a 7 dias.</p>
-                    </div>
-                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
-                        <div class="w-10 h-10 bg-teal-100 text-teal-600 rounded-full flex items-center justify-center mb-3">
-                            <i class="fa-solid fa-bullseye"></i>
-                        </div>
-                        <h4 class="font-bold text-slate-800 mb-2">Meta Terapêutica</h4>
-                        <p class="text-sm text-slate-600">Para a maioria dos pacientes, o objetivo é manter a pressão abaixo de <strong>130/80 mmHg</strong> se tolerado, ou pelo menos < 140/90 mmHg.</p>
-                    </div>
-                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
-                        <div class="w-10 h-10 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mb-3">
-                            <i class="fa-solid fa-triangle-exclamation"></i>
-                        </div>
-                        <h4 class="font-bold text-slate-800 mb-2">Hipertensão Silenciosa</h4>
-                        <p class="text-sm text-slate-600">A ausência de sintomas não significa controle. A pressão alta danifica vasos, rins e coração silenciosamente.</p>
-                    </div>
-                </div>
-            </section>
-
-            <!-- SECTION: LIFESTYLE -->
-            <section id="section-lifestyle" class="hidden space-y-6">
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-                    <div class="mb-6 border-l-4 border-emerald-500 pl-4">
-                        <h2 class="text-2xl font-bold text-slate-900">Poder do Estilo de Vida</h2>
-                        <p class="text-slate-600 mt-1">Mudanças de hábito funcionam como remédio. Selecione as mudanças abaixo para ver o impacto estimado na redução da sua pressão arterial sistólica (máxima).</p>
-                    </div>
-
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <!-- Controls -->
-                        <div class="space-y-4">
-                            <h3 class="font-bold text-slate-800 mb-2">Selecione suas Metas:</h3>
-                            
-                            <label class="flex items-center p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors">
-                                <input type="checkbox" onchange="app.updateLifestyleChart()" value="5" class="w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500 lifestyle-check">
-                                <div class="ml-3">
-                                    <span class="block font-semibold text-slate-800">Perda de Peso</span>
-                                    <span class="block text-xs text-slate-500">Manter IMC < 25 kg/m²</span>
-                                </div>
-                                <span class="ml-auto font-bold text-emerald-600">-5 a 20 mmHg</span>
-                            </label>
-
-                            <label class="flex items-center p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors">
-                                <input type="checkbox" onchange="app.updateLifestyleChart()" value="11" class="w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500 lifestyle-check">
-                                <div class="ml-3">
-                                    <span class="block font-semibold text-slate-800">Dieta DASH</span>
-                                    <span class="block text-xs text-slate-500">Rica em frutas, vegetais e baixo teor de gordura</span>
-                                </div>
-                                <span class="ml-auto font-bold text-emerald-600">-8 a 14 mmHg</span>
-                            </label>
-
-                            <label class="flex items-center p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors">
-                                <input type="checkbox" onchange="app.updateLifestyleChart()" value="5" class="w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500 lifestyle-check">
-                                <div class="ml-3">
-                                    <span class="block font-semibold text-slate-800">Redução de Sódio</span>
-                                    <span class="block text-xs text-slate-500">Menos de 2g de sódio (5g de sal) por dia</span>
-                                </div>
-                                <span class="ml-auto font-bold text-emerald-600">-2 a 8 mmHg</span>
-                            </label>
-
-                            <label class="flex items-center p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors">
-                                <input type="checkbox" onchange="app.updateLifestyleChart()" value="5" class="w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500 lifestyle-check">
-                                <div class="ml-3">
-                                    <span class="block font-semibold text-slate-800">Atividade Física</span>
-                                    <span class="block text-xs text-slate-500">150 min/semana de atividade moderada</span>
-                                </div>
-                                <span class="ml-auto font-bold text-emerald-600">-4 a 9 mmHg</span>
-                            </label>
-                            
-                            <label class="flex items-center p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors">
-                                <input type="checkbox" onchange="app.updateLifestyleChart()" value="4" class="w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500 lifestyle-check">
-                                <div class="ml-3">
-                                    <span class="block font-semibold text-slate-800">Moderar Álcool</span>
-                                    <span class="block text-xs text-slate-500">Limitar consumo diário</span>
-                                </div>
-                                <span class="ml-auto font-bold text-emerald-600">-2 a 4 mmHg</span>
-                            </label>
-                        </div>
-
-                        <!-- Visualization -->
-                        <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 flex flex-col items-center justify-center">
-                            <h3 class="font-bold text-slate-700 mb-2">Impacto Cumulativo Estimado (mmHg)</h3>
-                            <div class="chart-container">
-                                <canvas id="lifestyleChart"></canvas>
-                            </div>
-                            <p class="text-xs text-center text-slate-500 mt-4 max-w-md">
-                                *Valores aproximados baseados em estudos populacionais citados na diretriz. A resposta individual pode variar.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- SECTION: MEDICATION -->
-            <section id="section-medication" class="hidden space-y-6">
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-                    <div class="mb-6 border-l-4 border-indigo-500 pl-4">
-                        <h2 class="text-2xl font-bold text-slate-900">Tratamento Medicamentoso</h2>
-                        <p class="text-slate-600 mt-1">Conheça as principais classes de medicamentos utilizadas. A monoterapia (um remédio) é para casos leves; a maioria dos pacientes precisa de combinações.</p>
-                    </div>
-
-                    <!-- Drug Classes Grid -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-                        <!-- Class 1 -->
-                        <div class="bg-white p-4 rounded-lg border border-slate-200 hover:shadow-md transition-shadow group">
-                            <div class="flex items-center gap-2 mb-2">
-                                <span class="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded uppercase">DIU</span>
-                                <h3 class="font-bold text-slate-800">Diuréticos</h3>
-                            </div>
-                            <p class="text-sm text-slate-600 mb-3">Ajudam o corpo a eliminar sódio e água, reduzindo o volume sanguíneo.</p>
-                            <p class="text-xs text-slate-500 font-mono bg-slate-50 p-2 rounded">Ex: Hidroclorotiazida, Clortalidona, Indapamida</p>
-                        </div>
-
-                        <!-- Class 2 -->
-                        <div class="bg-white p-4 rounded-lg border border-slate-200 hover:shadow-md transition-shadow group">
-                            <div class="flex items-center gap-2 mb-2">
-                                <span class="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded uppercase">IECA</span>
-                                <h3 class="font-bold text-slate-800">Inibidores da ECA</h3>
-                            </div>
-                            <p class="text-sm text-slate-600 mb-3">Relaxam os vasos sanguíneos e protegem rins e coração.</p>
-                            <p class="text-xs text-slate-500 font-mono bg-slate-50 p-2 rounded">Ex: Enalapril, Captopril, Ramipril</p>
-                        </div>
-
-                        <!-- Class 3 -->
-                        <div class="bg-white p-4 rounded-lg border border-slate-200 hover:shadow-md transition-shadow group">
-                            <div class="flex items-center gap-2 mb-2">
-                                <span class="bg-violet-100 text-violet-700 text-xs font-bold px-2 py-1 rounded uppercase">BRA</span>
-                                <h3 class="font-bold text-slate-800">Bloq. Rec. Angiotensina</h3>
-                            </div>
-                            <p class="text-sm text-slate-600 mb-3">Efeito similar aos IECAs, mas com menos tosse como efeito colateral.</p>
-                            <p class="text-xs text-slate-500 font-mono bg-slate-50 p-2 rounded">Ex: Losartana, Valsartana, Candesartana</p>
-                        </div>
-
-                        <!-- Class 4 -->
-                        <div class="bg-white p-4 rounded-lg border border-slate-200 hover:shadow-md transition-shadow group">
-                            <div class="flex items-center gap-2 mb-2">
-                                <span class="bg-pink-100 text-pink-700 text-xs font-bold px-2 py-1 rounded uppercase">BCC</span>
-                                <h3 class="font-bold text-slate-800">Bloq. Canal de Cálcio</h3>
-                            </div>
-                            <p class="text-sm text-slate-600 mb-3">Relaxam a musculatura dos vasos. Muito eficazes em idosos.</p>
-                            <p class="text-xs text-slate-500 font-mono bg-slate-50 p-2 rounded">Ex: Anlodipino, Nifedipino</p>
-                        </div>
-                        
-                        <!-- Class 5 -->
-                        <div class="bg-white p-4 rounded-lg border border-slate-200 hover:shadow-md transition-shadow group">
-                            <div class="flex items-center gap-2 mb-2">
-                                <span class="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-1 rounded uppercase">BB</span>
-                                <h3 class="font-bold text-slate-800">Betabloqueadores</h3>
-                            </div>
-                            <p class="text-sm text-slate-600 mb-3">Reduzem o batimento cardíaco. Indicados em casos específicos (ex: pós-infarto).</p>
-                            <p class="text-xs text-slate-500 font-mono bg-slate-50 p-2 rounded">Ex: Atenolol, Carvedilol, Bisoprolol</p>
-                        </div>
-                    </div>
-
-                    <!-- Adherence Tips Block -->
-                    <div class="bg-slate-900 text-white rounded-xl p-6 md:p-8">
-                        <div class="flex flex-col md:flex-row items-center gap-6">
-                            <div class="flex-1">
-                                <h3 class="text-xl font-bold text-yellow-400 mb-2"><i class="fa-solid fa-lightbulb mr-2"></i>Dicas de Ouro para Não Esquecer</h3>
-                                <ul class="space-y-3 text-slate-300">
-                                    <li class="flex items-start"><i class="fa-solid fa-check mt-1 mr-2 text-green-400"></i> Associe ao hábito: "Escovou os dentes, tomou o remédio".</li>
-                                    <li class="flex items-start"><i class="fa-solid fa-check mt-1 mr-2 text-green-400"></i> Use o alarme do celular.</li>
-                                    <li class="flex items-start"><i class="fa-solid fa-check mt-1 mr-2 text-green-400"></i> Organiza em caixinhas semanais.</li>
-                                    <li class="flex items-start"><i class="fa-solid fa-check mt-1 mr-2 text-green-400"></i> Nunca pare por conta própria, mesmo se a pressão estiver boa.</li>
-                                </ul>
-                            </div>
-                            <div class="md:w-1/3 bg-slate-800 p-4 rounded-lg text-center">
-                                <p class="text-3xl font-bold text-white mb-1">50%</p>
-                                <p class="text-xs text-slate-400">dos pacientes abandonam o tratamento no primeiro ano.</p>
-                                <p class="text-sm text-yellow-400 font-bold mt-2">Não faça parte dessa estatística!</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- SECTION: DATA -->
-            <section id="section-data" class="hidden space-y-6">
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-                    <div class="mb-6 border-l-4 border-purple-500 pl-4">
-                        <h2 class="text-2xl font-bold text-slate-900">Epidemiologia e Riscos</h2>
-                        <p class="text-slate-600 mt-1">Dados da diretriz mostram que a hipertensão é o principal fator de risco para doenças cardiovasculares no Brasil.</p>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <!-- Chart 1: Prevalence -->
-                        <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                            <h3 class="font-bold text-center text-slate-800 mb-4">Prevalência em Adultos Brasileiros</h3>
-                            <div class="chart-container">
-                                <canvas id="prevalenceChart"></canvas>
-                            </div>
-                            <p class="text-xs text-center text-slate-500 mt-2">Cerca de 32% dos adultos têm hipertensão. Em idosos (>60 anos), esse número sobe para mais de 60%.</p>
-                        </div>
-
-                        <!-- Chart 2: Consequences -->
-                        <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                            <h3 class="font-bold text-center text-slate-800 mb-4">Risco de Complicações (Não Tratada)</h3>
-                            <div class="chart-container">
-                                <canvas id="riskChart"></canvas>
-                            </div>
-                            <p class="text-xs text-center text-slate-500 mt-2">O tratamento reduz drasticamente o risco de AVC (Derrame) e Infarto.</p>
-                        </div>
-                    </div>
-                    
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-                        <div class="text-center p-4 bg-red-50 rounded-lg">
-                            <i class="fa-solid fa-brain text-2xl text-red-500 mb-2"></i>
-                            <p class="font-bold text-slate-800">AVC</p>
-                            <p class="text-xs text-slate-500">Principal Causa</p>
-                        </div>
-                        <div class="text-center p-4 bg-blue-50 rounded-lg">
-                            <i class="fa-solid fa-heart-crack text-2xl text-blue-500 mb-2"></i>
-                            <p class="font-bold text-slate-800">Infarto</p>
-                            <p class="text-xs text-slate-500">Fator Crítico</p>
-                        </div>
-                        <div class="text-center p-4 bg-yellow-50 rounded-lg">
-                            <i class="fa-solid fa-kidney text-2xl text-yellow-600 mb-2"></i>
-                            <p class="font-bold text-slate-800">Doença Renal</p>
-                            <p class="text-xs text-slate-500">Causa Diálise</p>
-                        </div>
-                        <div class="text-center p-4 bg-green-50 rounded-lg">
-                            <i class="fa-solid fa-eye text-2xl text-green-600 mb-2"></i>
-                            <p class="font-bold text-slate-800">Retinopatia</p>
-                            <p class="text-xs text-slate-500">Perda de Visão</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-        </main>
-
-        <!-- Footer -->
-        <footer class="bg-slate-100 border-t border-slate-200 mt-auto">
-            <div class="max-w-7xl mx-auto px-4 py-8 md:px-8">
-                <div class="text-center md:text-left grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <h5 class="font-bold text-slate-800">Sobre este Guia</h5>
-                        <p class="text-sm text-slate-500 mt-2 max-w-sm">
-                            Desenvolvido com base na Diretriz Brasileira de Hipertensão Arterial 2025. Este material é educativo e não substitui a consulta médica.
-                        </p>
-                    </div>
-                    <div class="text-center md:text-right">
-                        <p class="text-sm text-slate-500">Fonte: Sociedade Brasileira de Cardiologia (SBC)</p>
-                        <p class="text-xs text-slate-400 mt-1">© 2025 Guia Interativo HAS</p>
-                    </div>
-                </div>
-            </div>
-        </footer>
-
+  <div class="cols">
+    <div class="panel col">
+      <h2>Tabuleiro</h2>
+      <div id="grid" class="grid"></div>
+      <div class="hint">
+        <b>Como jogar:</b> clique numa carta da mão para selecionar → clique numa célula vazia para colocar.<br/>
+        Clique numa carta no tabuleiro para remover (volta para a mão).<br/>
+        Por rodada você pode colocar no máximo <span class="kbd">5</span> cartas novas. Depois clique <b>Resolver</b>.
+      </div>
     </div>
 
-    <script>
-        // --- State & Logic ---
-        
-        const app = {
-            activeTab: 'diagnosis',
-            
-            // Lifestyle Chart Data Ref
-            lifestyleChartRef: null,
+    <div class="panel col">
+      <h2>Controles</h2>
 
-            // Tab Switching Logic
-            switchTab: (tabId) => {
-                // Update State
-                app.activeTab = tabId;
-                
-                // Update UI Buttons
-                ['diagnosis', 'lifestyle', 'medication', 'data'].forEach(id => {
-                    const btn = document.getElementById(`tab-${id}`);
-                    const section = document.getElementById(`section-${id}`);
-                    
-                    if(id === tabId) {
-                        btn.className = "tab-active py-3 px-1 transition-all";
-                        section.classList.remove('hidden');
-                        section.classList.add('animate-fade-in');
-                    } else {
-                        btn.className = "tab-inactive py-3 px-1 transition-all";
-                        section.classList.add('hidden');
-                    }
-                });
+      <div class="stats">
+        <div class="pill">Nível: <b id="levelVal">1</b></div>
+        <div class="pill">Rompimentos: <b id="breaksVal">0</b></div>
+        <div class="pill">Bônus global aura: <b id="globalAuraVal">0</b></div>
+        <div class="pill">Vidas: <b id="livesVal">0</b></div>
+        <div class="pill">Limiar: <b id="thresholdVal">70</b></div>
+        <div class="pill">Cartas nesta rodada: <b id="placedThisMove">0</b> / 5</div>
 
-                // Init charts if tab is opened
-                if(tabId === 'lifestyle' && !app.lifestyleChartRef) {
-                    setTimeout(app.initLifestyleChart, 100);
-                }
-                if(tabId === 'data' && !Chart.getChart("prevalenceChart")) {
-                    setTimeout(app.initDataCharts, 100);
-                }
-            },
+        <div class="pill">Mult Flush: <b id="mFlush">1.4</b></div>
+        <div class="pill">Mult Straight: <b id="mStraight">1.2</b></div>
+        <div class="pill">Mult SF: <b id="mSF">1.7</b></div>
+        <div class="pill">ECO×: <b id="mEco">2.0</b></div>
+        <div class="pill">REVERB×: <b id="mReverb">2.0</b></div>
+        <div class="pill">Flush min: <b id="flushMin">5</b></div>
 
-            // BP Calculator Logic
-            calculateBP: () => {
-                const sys = parseInt(document.getElementById('input-sys').value);
-                const dia = parseInt(document.getElementById('input-dia').value);
-                const resultBox = document.getElementById('bp-result');
-                const boxStyle = document.getElementById('bp-result-box');
-                const title = document.getElementById('bp-classification');
-                const msg = document.getElementById('bp-message');
+        <div class="pill">Deck: <b id="deckCount">0</b></div>
+        <div class="pill">Descarte: <b id="discardCount">0</b></div>
+        <div class="pill">Mão: <b id="handCount">0</b> / 9</div>
+        <div class="pill">Conceitos no grid: <b id="conceptsOnGrid">0</b></div>
+      </div>
 
-                if (!sys || !dia) {
-                    alert("Por favor, insira os dois valores.");
-                    return;
-                }
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+        <button id="btnDraw">Comprar até 9</button>
+        <button id="btnMulligan">Mulligan (mão inteira)</button>
+        <button id="btnResolve" class="primary">Resolver (fim da rodada)</button>
+        <button id="btnClearAllRunes" class="ghost">Remover Runas do grid</button>
+        <button id="btnReset" class="danger">Reset Geral</button>
+      </div>
 
-                resultBox.classList.remove('hidden');
-                
-                let classification = "";
-                let colorClass = "";
-                let messageText = "";
-                
-                // Logic based on SBC 2025/2020 Guidelines
-                if (sys >= 180 || dia >= 110) {
-                    classification = "Hipertensão Estágio 3";
-                    colorClass = "bg-red-100 border-red-500 text-red-800";
-                    messageText = "Valores muito altos. Procure atendimento médico imediatamente se houver sintomas, ou marque consulta com urgência.";
-                } else if (sys >= 160 || dia >= 100) {
-                    classification = "Hipertensão Estágio 2";
-                    colorClass = "bg-red-50 border-red-500 text-red-700";
-                    messageText = "Necessário tratamento medicamentoso combinado e mudança de estilo de vida. Consulte seu médico.";
-                } else if (sys >= 140 || dia >= 90) {
-                    classification = "Hipertensão Estágio 1";
-                    colorClass = "bg-orange-50 border-orange-500 text-orange-800";
-                    messageText = "Sinal de alerta. Confirmar com MRPA/MAPA. Tratamento geralmente envolve mudança de vida e possivelmente medicação.";
-                } else if (sys >= 130 || dia >= 85) {
-                    classification = "Pré-Hipertensão";
-                    colorClass = "bg-yellow-50 border-yellow-500 text-yellow-800";
-                    messageText = "Você está na zona de risco. Ótimo momento para prevenir com dieta e exercícios.";
-                } else if (sys >= 120 || dia >= 80) {
-                    classification = "Normal";
-                    colorClass = "bg-emerald-50 border-emerald-500 text-emerald-800";
-                    messageText = "Sua pressão está dentro da faixa normal, mas não ótima. Mantenha hábitos saudáveis.";
-                } else {
-                    classification = "Ótima";
-                    colorClass = "bg-green-100 border-green-500 text-green-800";
-                    messageText = "Parabéns! Sua pressão está excelente. Continue assim.";
-                }
+      <div class="hint">
+        <b>Amplificadores liberados:</b> ECO e REVERB podem ativar <b>várias vezes</b> na mesma chain (stackando).
+      </div>
 
-                // Apply styles
-                boxStyle.className = `p-4 rounded-md border-l-4 mb-2 ${colorClass}`;
-                title.innerText = classification;
-                msg.innerText = messageText;
-            },
+      <h2 style="margin-top:12px;">Mão (9)</h2>
+      <div id="hand" class="hand"></div>
 
-            // Lifestyle Chart Logic
-            initLifestyleChart: () => {
-                const ctx = document.getElementById('lifestyleChart').getContext('2d');
-                
-                app.lifestyleChartRef = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: ['Redução Atual', 'Potencial Máximo'],
-                        datasets: [{
-                            label: 'Queda na Pressão Sistólica (mmHg)',
-                            data: [0, 30], // Initial values
-                            backgroundColor: ['#10b981', '#cbd5e1'],
-                            borderRadius: 4,
-                            barPercentage: 0.6
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                title: { display: true, text: 'mmHg' },
-                                max: 40
-                            }
-                        },
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: {
-                                callbacks: {
-                                    label: (ctx) => `-${ctx.raw} mmHg`
-                                }
-                            }
-                        }
-                    }
-                });
-                app.updateLifestyleChart();
-            },
+      <h2 style="margin-top:12px;">Log</h2>
+      <div id="log" class="log">—</div>
+    </div>
+  </div>
 
-            updateLifestyleChart: () => {
-                if(!app.lifestyleChartRef) return;
-                
-                const checks = document.querySelectorAll('.lifestyle-check:checked');
-                let totalReduction = 0;
-                
-                checks.forEach(chk => {
-                    // Simple logic: taking average of range for visualization
-                    let val = parseInt(chk.value);
-                    if (val === 5) val = 12; // Weight loss is variable, boosting visual impact
-                    totalReduction += parseInt(chk.value); 
-                });
+  <!-- Help modal -->
+  <div id="helpOverlay" class="modalOverlay">
+    <div class="modal">
+      <div class="modalHeader">
+        <h3>Help — Como funciona</h3>
+        <button id="helpClose" class="ghost">Fechar</button>
+      </div>
+      <div class="modalBody">
+        <div class="mono">
+<b>Objetivo</b>
+• Construa chains da borda até a Casa Dissonante.
+• Se scaled ×10 ≥ limiar, você causa um rompimento.
+• Rompimentos são infinitos: limiar começa em 70 e aumenta +70 a cada rompimento.
 
-                // Cap realistic max reduction for visual purposes (synergy isn't purely additive)
-                const realisticReduction = Math.min(totalReduction, 35);
+<b>Dificuldade</b>
+• A cada rompimento: todas as runas +1 aura (bônus global acumulativo).
 
-                app.lifestyleChartRef.data.datasets[0].data[0] = realisticReduction;
-                app.lifestyleChartRef.update();
-            },
+<b>Vidas</b>
+• Você começa com 6 vidas.
+• Se não romper, perde 1 vida.
 
-            // Epidemiology Charts
-            initDataCharts: () => {
-                // Chart 1: Prevalence
-                const ctxPrev = document.getElementById('prevalenceChart').getContext('2d');
-                new Chart(ctxPrev, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Hipertensos', 'Normotensos'],
-                        datasets: [{
-                            data: [32, 68],
-                            backgroundColor: ['#ef4444', '#e2e8f0'],
-                            hoverOffset: 4
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { position: 'bottom' },
-                            title: { display: true, text: 'População Adulta Geral' }
-                        }
-                    }
-                });
+<b>Recompensas</b>
+• A cada rompimento: escolha 1 de 3.
+  - Fortificar runa: +2 aura (específica)
+  - +0,1 em mult de Flush/Straight
+  - +0,1 em ECO/REVERB
+  - Estilos (até 3 na run)
 
-                // Chart 2: Risk Reduction
-                const ctxRisk = document.getElementById('riskChart').getContext('2d');
-                new Chart(ctxRisk, {
-                    type: 'bar',
-                    data: {
-                        labels: ['Risco de AVC', 'Risco de Infarto'],
-                        datasets: [
-                            {
-                                label: 'Sem Controle',
-                                data: [100, 100], // Baseline risk
-                                backgroundColor: '#94a3b8'
-                            },
-                            {
-                                label: 'Com Controle BP',
-                                data: [60, 75], // 40% reduction Stroke, 25% MI (Approx guideline stats)
-                                backgroundColor: '#3b82f6'
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            y: {
-                                display: false,
-                                max: 120
-                            }
-                        },
-                        plugins: {
-                            tooltip: {
-                                callbacks: {
-                                    label: (ctx) => ctx.datasetIndex === 1 ? `Redução para ${ctx.raw}% do risco inicial` : 'Risco Basal (100%)'
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-        };
+<b>Amplificadores (ECO/REVERB)</b>
+• Podem ativar múltiplas vezes na mesma chain (stackando).
+        </div>
+      </div>
+      <div class="modalFooter">
+        <button id="helpClose2" class="primary">Entendi</button>
+      </div>
+    </div>
+  </div>
 
-        // Initialize default view
-        window.addEventListener('DOMContentLoaded', () => {
-            // Optional: Simple fade-in for main content
-            document.querySelector('main').classList.add('opacity-100');
-        });
+  <!-- Reward modal -->
+  <div id="rewardOverlay" class="modalOverlay">
+    <div class="modal">
+      <div class="modalHeader">
+        <h3 id="rewardTitle">Recompensa</h3>
+        <span class="muted mono" id="rewardSubtitle">—</span>
+      </div>
+      <div class="modalBody">
+        <div class="mono">Escolha <b>1</b> recompensa para continuar.</div>
+        <div id="rewardGrid" class="rewardGrid"></div>
+        <div class="hint">Recompensas alteram esta run permanentemente.</div>
+      </div>
+      <div class="modalFooter">
+        <button id="rewardSkip" class="ghost" title="Não recomendado">Pular (debug)</button>
+      </div>
+    </div>
+  </div>
 
-    </script>
+<script>
+/* ===== Constants ===== */
+const N = 5;
+const HAND_MAX = 9;
+const BASE_LIVES = 6;
+
+const BASE_THRESHOLD = 70;
+const THRESHOLD_STEP = 70;
+
+const DIRS = ['U','R','D','L'];
+const DELTA = { U:[-1,0], R:[0,1], D:[1,0], L:[0,-1] };
+const ROT_PENALTY_PER_TURN = 0.25;
+
+const RUNES = ['VAR','AEL','LUM','RHE','SOL','NOX'];
+const CONCEPTS_12 = [
+  { name:'DESVIO', dirs:['L','R'] },
+  { name:'DESVIO', dirs:['L','R'] },
+  { name:'CURVATURA', dirs:['U','R'] },
+  { name:'CURVATURA', dirs:['U','R'] },
+  { name:'CRUZAMENTO', dirs:['U','R','D','L'] },
+  { name:'CRUZAMENTO', dirs:['U','R','D','L'] },
+  { name:'ECO', dirs:['R'], effect:'ECO' },
+  { name:'ECO', dirs:['R'], effect:'ECO' },
+  { name:'ECO', dirs:['R'], effect:'ECO' },
+  { name:'REVERB', dirs:['R'], effect:'REVERB' },
+  { name:'REVERB', dirs:['R'], effect:'REVERB' },
+  { name:'REVERB', dirs:['R'], effect:'REVERB' },
+];
+
+const DEFAULT_MULT = { flush: 1.4, straight: 1.2, straightFlush: 1.7 };
+const DEFAULT_AMP = { eco: 2.0, reverb: 2.0 };
+const DEFAULT_FLUSH_MIN = 5;
+
+const STYLES = {
+  harmony: { key:'harmony', name:'Mestre da Harmonia', desc:'Flush pode ser ativado com 3 runas.', apply(s){ s.flushMinCount=3; } },
+  adapt: { key:'adapt', name:'Mestre da Adaptação', desc:'Até 2 runas por chain ignoram penalidade de giros.', apply(s){ s.styleAdapt=true; } },
+  paths: { key:'paths', name:'Mestre dos Caminhos', desc:'+1 vida a cada 2 rompimentos.', apply(s){ s.stylePaths=true; } },
+};
+
+const RUNE_TIPS = {
+  VAR: "VAR — Adaptação.\n• Naipe de coerência.\n• Pode ser fortalecido por recompensas.",
+  AEL: "AEL — Abertura.\n• Naipe de coerência.",
+  LUM: "LUM — Clareza.\n• Naipe de coerência.",
+  RHE: "RHE — Vínculo.\n• Naipe de coerência.",
+  SOL: "SOL — Impulso.\n• Naipe de coerência.",
+  NOX: "NOX — Ruído.\n• Naipe de coerência."
+};
+const CONCEPT_TIPS = {
+  DESVIO: "DESVIO — Direcional.\n• Direções: ← →\n• Transmite a chain mudando eixo.\n• Ocupa espaço e permanece.",
+  CURVATURA: "CURVATURA — Ramificador.\n• Direções: ↑ →\n• Pode gerar split.\n• Ocupa espaço e permanece.",
+  CRUZAMENTO: "CRUZAMENTO — Cruz.\n• Direções: ↑ → ↓ ←\n• Facilita splits e rotas.\n• Ocupa espaço e permanece.",
+  ECO: "ECO — Amplificador.\n• Direção: →\n• Multiplica a runa anterior.\n• Agora pode stackar múltiplas vezes na chain.",
+  REVERB: "REVERBERAÇÃO — Amplificador.\n• Direção: →\n• Multiplica a runa posterior.\n• Agora pode stackar múltiplas vezes na chain."
+};
+
+/* ===== State ===== */
+let state=null;
+
+function uid(){ return Math.random().toString(16).slice(2)+Date.now().toString(16); }
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a; }
+function baseAuraFor(dir){ if(dir==='U')return 3; if(dir==='R')return 2; if(dir==='D')return 1; return 2; }
+
+function buildDeck60(){
+  const deck=[];
+  for(const rune of RUNES){
+    for(const dir of DIRS){
+      for(let k=0;k<2;k++){
+        deck.push({ id: uid(), kind:'rune', rune, aura: baseAuraFor(dir), dir });
+      }
+    }
+  }
+  for(const c of CONCEPTS_12) deck.push({ id: uid(), kind:'concept', ...c });
+  return shuffle(deck);
+}
+
+function init(){
+  state = {
+    target:{ r:2, c:2 },
+    grid:Array.from({length:N},()=>Array(N).fill(null)),
+    blocked:new Set(),
+    deck:buildDeck60(),
+    discard:[],
+    hand:[],
+    selectedCardId:null,
+
+    placedThisMove:0,
+    currentMoveId:1,
+
+    level:1,
+    threshold:BASE_THRESHOLD,
+    breaks:0,
+
+    lives:BASE_LIVES,
+
+    auraBoost:Object.fromEntries(RUNES.map(r=>[r,0])),
+    globalAuraBonus: 0,
+    mult:{...DEFAULT_MULT},
+    amp:{...DEFAULT_AMP},
+    flushMinCount:DEFAULT_FLUSH_MIN,
+
+    stylesOwned:new Set(),
+    styleAdapt:false,
+    stylePaths:false,
+
+    tempAuraDebuff:0,
+
+    alive:true,
+    inReward:false
+  };
+
+  drawToHand();
+  render();
+  log(`Protótipo iniciado.\nAlvo: ${posName(state.target.r,state.target.c)} | Limiar: ${state.threshold} | Vidas: ${state.lives}\n`);
+}
+
+function applyAllAuraBonusesToCard(card){
+  if (!card || card.kind!=='rune') return;
+  card.aura = card.aura + (state.auraBoost[card.rune] || 0) + state.globalAuraBonus;
+}
+
+function drawOne(){
+  if (state.deck.length===0){
+    if (state.discard.length===0) return null;
+    state.deck = shuffle(state.discard.splice(0));
+  }
+  return state.deck.pop();
+}
+
+function drawToHand(){
+  while (state.hand.length < HAND_MAX){
+    const c = drawOne();
+    if (!c) break;
+    if (c.kind==='rune') applyAllAuraBonusesToCard(c);
+    state.hand.push(c);
+  }
+}
+
+function mulligan(){
+  state.deck.push(...state.hand);
+  state.hand=[];
+  shuffle(state.deck);
+  state.selectedCardId=null;
+  drawToHand();
+  log("Mulligan realizado.\n");
+}
+
+function inBounds(r,c){ return r>=0 && r<N && c>=0 && c<N; }
+function isBorder(r,c){ return r===0 || c===0 || r===N-1 || c===N-1; }
+function keyRC(r,c){ return `${r},${c}`; }
+function isBlocked(r,c){ return state.blocked.has(keyRC(r,c)); }
+function getCard(r,c){ return state.grid[r][c]; }
+function prettyDir(d){ return d==='U'?'↑':d==='R'?'→':d==='D'?'↓':'←'; }
+function posName(r,c){ return `${String.fromCharCode(65+c)}${r+1}`; }
+
+function countConceptsOnGrid(){
+  let n=0;
+  for(let r=0;r<N;r++) for(let c=0;c<N;c++){
+    const card=getCard(r,c);
+    if(card && card.kind==='concept') n++;
+  }
+  return n;
+}
+
+function cardTooltip(card){
+  if(!card) return "";
+  if(card.kind==='rune'){
+    const lore = RUNE_TIPS[card.rune] ?? `${card.rune} — Runa.`;
+    return `${lore}\n\n(Stats)\n• Aura: ${card.aura}\n• Direção: ${prettyDir(card.dir)}\n• Bônus global: +${state.globalAuraBonus}\n• Giros: -25% por 90°`;
+  }
+  const lore = CONCEPT_TIPS[card.name] ?? `${card.name} — Conceito.`;
+  const dirs = (card.dirs||[]).map(prettyDir).join(' ');
+  return `${lore}\n\n(Stats)\n• Direções: ${dirs}${card.effect?`\n• Efeito: ${card.effect}`:''}`;
+}
+
+/* ===== Placement / Removal ===== */
+function placeSelectedToCell(r,c){
+  if(!state.alive || state.inReward) return;
+  if(r===state.target.r && c===state.target.c) return;
+  if(isBlocked(r,c)){ log(`Casa ${posName(r,c)} bloqueada.\n`, true); return; }
+  if(getCard(r,c)) return;
+
+  const id=state.selectedCardId;
+  if(!id) return;
+
+  if(state.placedThisMove>=5){ log("Você já colocou 5 cartas nesta rodada.\n", true); return; }
+
+  const idx=state.hand.findIndex(x=>x.id===id);
+  if(idx<0) return;
+
+  const card=state.hand.splice(idx,1)[0];
+  card._placedMoveId = state.currentMoveId;
+  state.grid[r][c]=card;
+  state.selectedCardId=null;
+  state.placedThisMove+=1;
+  render();
+}
+
+function removeCardFromCell(r,c){
+  if(!state.alive || state.inReward) return;
+  const card=getCard(r,c);
+  if(!card) return;
+  state.grid[r][c]=null;
+
+  if(card._placedMoveId===state.currentMoveId && state.placedThisMove>0) state.placedThisMove-=1;
+  delete card._placedMoveId;
+
+  state.hand.push(card);
+  render();
+}
+
+function clearAllRunesFromGridToDiscard(){
+  for(let r=0;r<N;r++) for(let c=0;c<N;c++){
+    const card=getCard(r,c);
+    if(card && card.kind==='rune'){
+      state.discard.push(card);
+      state.grid[r][c]=null;
+      if(card._placedMoveId===state.currentMoveId && state.placedThisMove>0) state.placedThisMove-=1;
+    }
+  }
+  render();
+  log("Runas removidas do grid (foram para o descarte).\n");
+}
+
+/* ===== Rendering ===== */
+function render(){
+  const gridEl=document.getElementById('grid');
+  gridEl.innerHTML='';
+  for(let r=0;r<N;r++){
+    for(let c=0;c<N;c++){
+      const isT = (r===state.target.r && c===state.target.c);
+      const isB = isBlocked(r,c);
+
+      const cell=document.createElement('div');
+      cell.className='cell'+(isT?' target':'')+(isB?' blocked':'');
+      cell.dataset.r=r; cell.dataset.c=c;
+
+      const coord=document.createElement('div');
+      coord.className='coord mono';
+      coord.textContent=`${String.fromCharCode(65+c)}${r+1}`;
+      cell.appendChild(coord);
+
+      const card=getCard(r,c);
+      const content=document.createElement('div');
+      content.className='mono';
+
+      if(isT){
+        content.innerHTML=`<div style="font-weight:900;">CASA<br/>DISSONANTE</div><div class="mini">${posName(r,c)}</div>`;
+      } else if(!card){
+        content.innerHTML=`<div style="opacity:.35;">vazio</div>`;
+      } else if(card.kind==='rune'){
+        content.innerHTML=`<div style="font-weight:900;">${card.rune}</div><div class="small">a${card.aura} | ${prettyDir(card.dir)}</div>`;
+        cell.setAttribute('data-tip', cardTooltip(card));
+      } else {
+        content.innerHTML=`<div style="font-weight:900;">${card.name}</div><div class="small">conceito</div>`;
+        cell.setAttribute('data-tip', cardTooltip(card));
+      }
+      cell.appendChild(content);
+
+      const badge=document.createElement('div');
+      badge.className='badge mono';
+      if(card) badge.textContent = card.kind==='rune' ? prettyDir(card.dir) : (card.dirs||[]).map(prettyDir).join('');
+      cell.appendChild(badge);
+
+      if(isB){
+        const bm=document.createElement('div');
+        bm.className='blockedMark';
+        bm.textContent='✖';
+        cell.appendChild(bm);
+      }
+
+      cell.addEventListener('click', ()=>{
+        const rr=Number(cell.dataset.r), cc=Number(cell.dataset.c);
+        if(rr===state.target.r && cc===state.target.c) return;
+        const cardHere=getCard(rr,cc);
+        if(cardHere) removeCardFromCell(rr,cc);
+        else placeSelectedToCell(rr,cc);
+      });
+
+      gridEl.appendChild(cell);
+    }
+  }
+
+  const handEl=document.getElementById('hand');
+  handEl.innerHTML='';
+  state.hand.forEach(card=>{
+    const d=document.createElement('div');
+    d.className='card'+(state.selectedCardId===card.id?' selected':'');
+    d.setAttribute('data-tip', cardTooltip(card));
+
+    const tagClass=card.kind==='rune'?'rune':'concept';
+    const tagLabel=card.kind==='rune'?'RUNA':'CONCEITO';
+    const title=card.kind==='rune'?card.rune:card.name;
+    const sub=card.kind==='rune'
+      ? `aura ${card.aura} • dir ${prettyDir(card.dir)}`
+      : `dirs ${(card.dirs||[]).map(prettyDir).join('')} ${card.effect?`• ${card.effect}`:''}`;
+
+    d.innerHTML=`
+      <div class="top">
+        <div class="title">${title}</div>
+        <div class="tag ${tagClass}">${tagLabel}</div>
+      </div>
+      <div class="sub mono">${sub}</div>
+    `;
+    d.addEventListener('click', ()=>{
+      if(!state.alive || state.inReward) return;
+      state.selectedCardId = (state.selectedCardId===card.id)?null:card.id;
+      render();
+    });
+    handEl.appendChild(d);
+  });
+
+  document.getElementById('levelVal').textContent=state.level;
+  document.getElementById('breaksVal').textContent=state.breaks;
+  document.getElementById('globalAuraVal').textContent=state.globalAuraBonus;
+  document.getElementById('livesVal').textContent=state.lives;
+  document.getElementById('thresholdVal').textContent=state.threshold;
+  document.getElementById('placedThisMove').textContent=state.placedThisMove;
+
+  document.getElementById('deckCount').textContent=state.deck.length;
+  document.getElementById('discardCount').textContent=state.discard.length;
+  document.getElementById('handCount').textContent=state.hand.length;
+  document.getElementById('conceptsOnGrid').textContent=countConceptsOnGrid();
+
+  document.getElementById('mFlush').textContent=state.mult.flush.toFixed(1);
+  document.getElementById('mStraight').textContent=state.mult.straight.toFixed(1);
+  document.getElementById('mSF').textContent=state.mult.straightFlush.toFixed(1);
+  document.getElementById('mEco').textContent=state.amp.eco.toFixed(1);
+  document.getElementById('mReverb').textContent=state.amp.reverb.toFixed(1);
+  document.getElementById('flushMin').textContent=state.flushMinCount;
+
+  const disable = (!state.alive || state.inReward);
+  document.getElementById('btnDraw').disabled=disable;
+  document.getElementById('btnMulligan').disabled=disable;
+  document.getElementById('btnResolve').disabled=disable;
+  document.getElementById('btnClearAllRunes').disabled=disable;
+}
+
+/* ===== Chain engine ===== */
+function turnsTo(fromDir,toDir){
+  const i=DIRS.indexOf(fromDir), j=DIRS.indexOf(toDir);
+  const cw=(j-i+4)%4;
+  const ccw=(i-j+4)%4;
+  return Math.min(cw,ccw);
+}
+function neighborCoords(r,c){
+  return DIRS.map(d=>{
+    const [dr,dc]=DELTA[d];
+    return { d, r:r+dr, c:c+dc };
+  }).filter(x=>inBounds(x.r,x.c));
+}
+function outgoingAllowed(card,needDir){
+  if(!card) return false;
+  if(card.kind==='concept') return (card.dirs||[]).includes(needDir);
+  if(card.kind==='rune') return true;
+  return false;
+}
+
+function findAllPaths(maxLen=18){
+  const visited=Array.from({length:N},()=>Array(N).fill(false));
+  const starts=[];
+  for(let r=0;r<N;r++) for(let c=0;c<N;c++){
+    if(!isBorder(r,c)) continue;
+    if(isBlocked(r,c)) continue;
+    if(getCard(r,c)) starts.push({r,c});
+  }
+  const paths=[];
+  function dfs(r,c,path){
+    if(path.length>maxLen) return;
+    if(r===state.target.r && c===state.target.c){ paths.push([...path]); return; }
+    visited[r][c]=true;
+    const card=getCard(r,c);
+    if(!card){ visited[r][c]=false; return; }
+
+    for(const nb of neighborCoords(r,c)){
+      if(visited[nb.r][nb.c]) continue;
+      if(isBlocked(nb.r,nb.c)) continue;
+
+      const isTarget=(nb.r===state.target.r && nb.c===state.target.c);
+      const nextCard = isTarget ? {} : getCard(nb.r,nb.c);
+      if(!isTarget && !nextCard) continue;
+
+      if(!outgoingAllowed(card, nb.d)) continue;
+
+      path.push({r:nb.r,c:nb.c});
+      dfs(nb.r,nb.c,path);
+      path.pop();
+    }
+    visited[r][c]=false;
+  }
+  for(const s of starts) dfs(s.r,s.c,[{r:s.r,c:s.c}]);
+
+  const uniq=new Map();
+  for(const p of paths){
+    const k=p.map(x=>`${x.r},${x.c}`).join('->');
+    if(!uniq.has(k)) uniq.set(k,p);
+  }
+  return [...uniq.values()];
+}
+
+function mostFrequentRuneAtLeast(runes, minCount){
+  if(!runes.length) return null;
+  const m=new Map();
+  for(const r of runes) m.set(r,(m.get(r)||0)+1);
+  let best=null,bestN=0;
+  for(const [k,v] of m.entries()){
+    if(v>bestN){ best=k; bestN=v; }
+  }
+  return bestN>=minCount?best:null;
+}
+function round2(x){ return Math.round(x*100)/100; }
+function round1(x){ return Math.round(x*10)/10; }
+
+function scorePath(path){
+  const cards = path.map(p=>({
+    ...p,
+    card: (p.r===state.target.r && p.c===state.target.c) ? null : getCard(p.r,p.c)
+  }));
+
+  const needs=[];
+  for(let i=0;i<cards.length;i++){
+    if(i===cards.length-1){ needs.push(null); continue; }
+    const a=cards[i], b=cards[i+1];
+    const dr=b.r-a.r, dc=b.c-a.c;
+    let d=null;
+    for(const k of DIRS){
+      const [rr,cc]=DELTA[k];
+      if(rr===dr && cc===dc){ d=k; break; }
+    }
+    needs.push(d);
+  }
+
+  const runesInChain=[];
+  const effective=new Array(cards.length).fill(0);
+  const rotTurns=new Array(cards.length).fill(0);
+
+  for(let i=0;i<cards.length;i++){
+    const card=cards[i].card;
+    const need=needs[i];
+    if(!card) continue;
+    if(card.kind==='rune'){
+      runesInChain.push(card.rune);
+      const auraWithDebuff = Math.max(0, card.aura + state.tempAuraDebuff);
+      if(!need){
+        effective[i]=auraWithDebuff;
+      } else {
+        const t=turnsTo(card.dir, need);
+        rotTurns[i]=t;
+        const factor=Math.max(0,1-ROT_PENALTY_PER_TURN*t);
+        effective[i]=auraWithDebuff*factor;
+      }
+    }
+  }
+
+  // Style adapt: ignore rotation penalty for up to 2 runes (best savings)
+  if(state.styleAdapt){
+    const candidates=[];
+    for(let i=0;i<cards.length;i++){
+      const card=cards[i].card;
+      if(!card || card.kind!=='rune') continue;
+      if(rotTurns[i]<=0) continue;
+      const auraWithDebuff = Math.max(0, card.aura + state.tempAuraDebuff);
+      const factor = Math.max(0,1-ROT_PENALTY_PER_TURN*rotTurns[i]);
+      const saved = auraWithDebuff*(1-factor);
+      candidates.push({i, saved, auraWithDebuff});
+    }
+    candidates.sort((a,b)=>b.saved-a.saved);
+    for(const ch of candidates.slice(0,2)){
+      effective[ch.i]=ch.auraWithDebuff;
+    }
+  }
+
+  // ✅ CHANGE: apply ALL amplifiers found (stacking), not just one
+  const ampNotes = [];
+  for(let i=0;i<cards.length;i++){
+    const card=cards[i].card;
+    if(!card || card.kind!=='concept' || !card.effect) continue;
+
+    if(card.effect==='ECO'){
+      // multiply previous rune
+      for(let j=i-1;j>=0;j--){
+        const prev=cards[j].card;
+        if(prev && prev.kind==='rune'){
+          effective[j]=effective[j]*state.amp.eco;
+          ampNotes.push(`ECO ×${state.amp.eco.toFixed(1)} em ${posName(cards[j].r,cards[j].c)}`);
+          break;
+        }
+      }
+    } else if(card.effect==='REVERB'){
+      // multiply next rune
+      for(let j=i+1;j<cards.length;j++){
+        const nxt=cards[j].card;
+        if(nxt && nxt.kind==='rune'){
+          effective[j]=effective[j]*state.amp.reverb;
+          ampNotes.push(`REVERB ×${state.amp.reverb.toFixed(1)} em ${posName(cards[j].r,cards[j].c)}`);
+          break;
+        }
+      }
+    }
+  }
+  const ampNote = ampNotes.length ? ampNotes.join(' | ') : null;
+
+  const baseSum=effective.reduce((a,b)=>a+b,0);
+
+  const flushRune=mostFrequentRuneAtLeast(runesInChain, state.flushMinCount);
+  const isFlush=flushRune!==null;
+  const isStraight=true;
+
+  let mult=1.0, tag='Ressonância Fraca';
+  if(isFlush && isStraight){ mult=state.mult.straightFlush; tag='Ressonância Plena'; }
+  else if(isFlush){ mult=state.mult.flush; tag='Ressonância Coerente'; }
+  else if(isStraight){ mult=state.mult.straight; tag='Trajetória Clara'; }
+
+  const total=baseSum*mult;
+  const scaled=Math.round(total*10);
+
+  let entry=null;
+  if(path.length>=2){
+    const a=path[path.length-2], b=path[path.length-1];
+    const dr=b.r-a.r, dc=b.c-a.c;
+    for(const k of DIRS){
+      const [rr,cc]=DELTA[k];
+      if(rr===dr && cc===dc) entry=k;
+    }
+  }
+  return { path, baseSum:round2(baseSum), tag, mult, total:round2(total), scaled, isFlush, flushRune, rotTurns, ampNote, entry };
+}
+
+function bestSplitSum(scores){
+  const bestByDir=new Map();
+  for(const s of scores){
+    if(!s.entry) continue;
+    const cur=bestByDir.get(s.entry);
+    if(!cur || s.scaled>cur.scaled) bestByDir.set(s.entry,s);
+  }
+  const arr=[...bestByDir.values()].sort((a,b)=>b.scaled-a.scaled);
+  const sum=arr.reduce((acc,s)=>acc+s.scaled,0);
+  return { sum, chains:arr, dirs:arr.map(x=>x.entry) };
+}
+
+/* ===== Dissonance + Rewards (unchanged from last version) ===== */
+function weightedPick(items){
+  const total=items.reduce((a,b)=>a+b.w,0);
+  let r=Math.random()*total;
+  for(const it of items){
+    r-=it.w;
+    if(r<=0) return it.k;
+  }
+  return items[items.length-1].k;
+}
+function applyDissonancesIfNeeded(){
+  if(state.level%5!==0) return;
+  const count=Math.floor(state.level/5);
+  const lines=[];
+  lines.push(`⚡ Dissonâncias do nível ${state.level}: ${count}`);
+
+  for(let i=0;i<count;i++){
+    const t=weightedPick([{k:'debuff',w:45},{k:'block',w:35},{k:'move',w:20}]);
+    if(t==='debuff'){
+      state.tempAuraDebuff = Math.min(state.tempAuraDebuff-1,-1);
+      lines.push(`• Ruído — aura temporária ${state.tempAuraDebuff} (próxima resolução).`);
+    } else if(t==='block'){
+      const candidates=[];
+      for(let r=0;r<N;r++) for(let c=0;c<N;c++){
+        if(r===state.target.r && c===state.target.c) continue;
+        candidates.push({r,c});
+      }
+      const pick=candidates[Math.floor(Math.random()*candidates.length)];
+      state.blocked.add(`${pick.r},${pick.c}`);
+      const card=getCard(pick.r,pick.c);
+      if(card){
+        if(card.kind==='concept'){ state.grid[pick.r][pick.c]=null; lines.push(`• Selo — bloqueou ${posName(pick.r,pick.c)} e destruiu conceito.`); }
+        else { state.discard.push(card); state.grid[pick.r][pick.c]=null; lines.push(`• Selo — bloqueou ${posName(pick.r,pick.c)} e descartou runa.`); }
+      } else {
+        lines.push(`• Selo — bloqueou ${posName(pick.r,pick.c)}.`);
+      }
+    } else {
+      const occupied=[];
+      for(let r=0;r<N;r++) for(let c=0;c<N;c++){
+        if(r===state.target.r && c===state.target.c) continue;
+        const card=getCard(r,c);
+        if(card) occupied.push({r,c});
+      }
+      if(!occupied.length){
+        lines.push(`• Deslocamento — sem peças para mover.`);
+      } else {
+        const src=occupied[Math.floor(Math.random()*occupied.length)];
+        const options=neighborCoords(src.r,src.c)
+          .filter(n=>!(n.r===state.target.r && n.c===state.target.c))
+          .filter(n=>!getCard(n.r,n.c))
+          .filter(n=>!isBlocked(n.r,n.c));
+        if(!options.length){
+          lines.push(`• Deslocamento — falhou (sem casa adjacente livre).`);
+        } else {
+          const dst=options[Math.floor(Math.random()*options.length)];
+          state.grid[dst.r][dst.c]=getCard(src.r,src.c);
+          state.grid[src.r][src.c]=null;
+          lines.push(`• Deslocamento — moveu peça de ${posName(src.r,src.c)} para ${posName(dst.r,dst.c)}.`);
+        }
+      }
+    }
+  }
+  log(lines.join('\n')+'\n', true);
+}
+
+function generateRewardOption(){
+  const styleRemaining = Object.values(STYLES).filter(s=>!state.stylesOwned.has(s.key));
+  const cat = weightedPick([
+    {k:'aura', w: 60},
+    {k:'mult', w: 25},
+    {k:'amp',  w: 12},
+    {k:'style',w: styleRemaining.length ? 3 : 0}
+  ]);
+
+  if(cat==='aura'){
+    const rune = RUNES[Math.floor(Math.random()*RUNES.length)];
+    return {
+      type:'aura',
+      rarity:'common',
+      title:`Fortificar ${rune}`,
+      desc:`+2 aura permanente para todas as cartas ${rune}.\n(afeta cartas compradas daqui em diante)`,
+      apply(){
+        state.auraBoost[rune]=(state.auraBoost[rune]||0)+2;
+        buffExistingRunes(rune,2);
+      }
+    };
+  }
+
+  if(cat==='mult'){
+    const which=Math.random()<0.5?'flush':'straight';
+    const label=which==='flush'?'Flush':'Straight';
+    return {
+      type:'mult',
+      rarity:'uncommon',
+      title:`Ressonância — ${label}`,
+      desc:`+0,1 no multiplicador de ${label}.`,
+      apply(){
+        state.mult[which]=round1(state.mult[which]+0.1);
+        state.mult.straightFlush=round1(Math.max(state.mult.straightFlush, state.mult.flush+0.2, state.mult.straight+0.3));
+      }
+    };
+  }
+
+  if(cat==='amp'){
+    const which=Math.random()<0.5?'eco':'reverb';
+    const label=which==='eco'?'ECO':'REVERB';
+    return {
+      type:'amp',
+      rarity:'rare',
+      title:`Amplificação — ${label}`,
+      desc:`+0,1 no multiplicador do ${label}.`,
+      apply(){ state.amp[which]=round1(state.amp[which]+0.1); }
+    };
+  }
+
+  const remaining=Object.values(STYLES).filter(s=>!state.stylesOwned.has(s.key));
+  const chosen=remaining[Math.floor(Math.random()*remaining.length)];
+  return {
+    type:'style',
+    rarity:'mythic',
+    title:`Estilo: ${chosen.name}`,
+    desc:`${chosen.desc}\n(Pode obter os 3 estilos na mesma run)`,
+    apply(){
+      state.stylesOwned.add(chosen.key);
+      chosen.apply(state);
+    }
+  };
+}
+
+function buffExistingRunes(rune,delta){
+  for(const c of state.hand){
+    if(c.kind==='rune' && c.rune===rune) c.aura+=delta;
+  }
+  for(let r=0;r<N;r++) for(let c=0;c<N;c++){
+    const card=getCard(r,c);
+    if(card && card.kind==='rune' && card.rune===rune) card.aura+=delta;
+  }
+}
+function applyGlobalAuraToExisting(delta){
+  for(const c of state.hand){
+    if(c.kind==='rune') c.aura += delta;
+  }
+  for(let r=0;r<N;r++) for(let c=0;c<N;c++){
+    const card=getCard(r,c);
+    if(card && card.kind==='rune') card.aura += delta;
+  }
+}
+
+function showRewards(){
+  state.inReward=true;
+  render();
+
+  document.getElementById('rewardTitle').textContent = `Rompimento — Recompensas`;
+  document.getElementById('rewardSubtitle').textContent = `Nível: ${state.level} | Limiar: ${state.threshold} | Alvo: ${posName(state.target.r,state.target.c)}`;
+
+  const opts=[], seen=new Set();
+  let guard=0;
+  while(opts.length<3 && guard<80){
+    const o=generateRewardOption();
+    const k=`${o.type}:${o.title}`;
+    if(!seen.has(k)){ seen.add(k); opts.push(o); }
+    guard++;
+  }
+
+  const grid=document.getElementById('rewardGrid');
+  grid.innerHTML='';
+  for(const o of opts){
+    const div=document.createElement('div');
+    div.className='rewardCard';
+    div.innerHTML=`
+      <div class="rewardTag ${o.rarity}">${o.rarity.toUpperCase()}</div>
+      <div class="rewardTitle">${o.title}</div>
+      <div class="rewardDesc">${o.desc}</div>
+    `;
+    div.addEventListener('click', ()=>{
+      o.apply();
+      hideRewards();
+      log(`🎁 Recompensa escolhida: ${o.title}\n`, false);
+    });
+    grid.appendChild(div);
+  }
+
+  document.getElementById('rewardOverlay').style.display='flex';
+}
+function hideRewards(){
+  document.getElementById('rewardOverlay').style.display='none';
+  state.inReward=false;
+  render();
+}
+
+function moveTargetAfterBreak(){
+  const options=[];
+  for(let r=0;r<N;r++) for(let c=0;c<N;c++){
+    if(r===state.target.r && c===state.target.c) continue;
+    options.push({r,c});
+  }
+  const nxt=options[Math.floor(Math.random()*options.length)];
+  state.target={r:nxt.r,c:nxt.c};
+
+  const card=getCard(nxt.r,nxt.c);
+  if(card && card.kind==='concept'){
+    state.grid[nxt.r][nxt.c]=null;
+    log(`💥 A Casa Dissonante mudou para ${posName(nxt.r,nxt.c)} e destruiu um conceito.\n`, true);
+  } else if(card && card.kind==='rune'){
+    state.discard.push(card);
+    state.grid[nxt.r][nxt.c]=null;
+    log(`💥 A Casa Dissonante mudou para ${posName(nxt.r,nxt.c)} e descartou uma runa.\n`, true);
+  }
+}
+
+/* ===== Resolve ===== */
+function consumeAllRunes(){
+  for(let r=0;r<N;r++) for(let c=0;c<N;c++){
+    const card=getCard(r,c);
+    if(card && card.kind==='rune'){
+      state.discard.push(card);
+      state.grid[r][c]=null;
+    }
+  }
+}
+
+function resolveRound(){
+  if(!state.alive || state.inReward) return;
+  if(state.lives<=0){ log("Sem vidas restantes.\n", true); return; }
+
+  const paths=findAllPaths();
+  if(!paths.length){
+    state.lives -= 1;
+    state.placedThisMove=0;
+    state.currentMoveId += 1;
+    drawToHand();
+    render();
+    log(`Nenhuma chain até o alvo (${posName(state.target.r,state.target.c)}). Você perdeu 1 vida.\n`, true);
+    checkEnd();
+    return;
+  }
+
+  const scores=paths.map(p=>scorePath(p)).sort((a,b)=>b.scaled-a.scaled);
+  const split=bestSplitSum(scores);
+  const best=scores[0];
+
+  const damage=split.sum;
+  const threshold=state.threshold;
+
+  consumeAllRunes();
+  state.placedThisMove=0;
+  state.currentMoveId += 1;
+  drawToHand();
+  state.tempAuraDebuff=0;
+
+  const lines=[];
+  lines.push(`=== Resolver (Nível ${state.level}) ===`);
+  lines.push(`Alvo: ${posName(state.target.r,state.target.c)} | Limiar: ${threshold} | Vidas: ${state.lives}`);
+  lines.push(`Chains: ${scores.length}`);
+  lines.push(`Melhor chain: ${best.tag}${best.isFlush?` (${best.flushRune})`:''} | base=${best.baseSum} | mult=${best.mult.toFixed(1)} | total=${best.total} | scaled=${best.scaled}`);
+  if(best.ampNote) lines.push(`  amps: ${best.ampNote}`);
+  lines.push(`Split (dirs ${split.dirs.join(', ')||'—'}): scaled total = ${damage}`);
+
+  const broke = (damage>=threshold);
+  if(broke){
+    state.breaks += 1;
+    lines.push(`✅ ROMPIMENTO! (${damage} ≥ ${threshold})`);
+
+    state.globalAuraBonus += 1;
+    applyGlobalAuraToExisting(1);
+    lines.push(`✨ Bônus global: todas as runas +1 aura (agora +${state.globalAuraBonus}).`);
+
+    state.level += 1;
+    state.threshold += THRESHOLD_STEP;
+
+    if(state.stylePaths && state.breaks % 2 === 0){
+      state.lives += 1;
+      lines.push(`🌿 Mestre dos Caminhos: +1 vida (a cada 2 rompimentos). Vidas: ${state.lives}`);
+    }
+
+    moveTargetAfterBreak();
+    applyDissonancesIfNeeded();
+
+    render();
+    log(lines.join('\n')+'\n', false);
+    showRewards();
+  } else {
+    state.lives -= 1;
+    lines.push(`❌ Falhou. (${damage} < ${threshold})`);
+    lines.push(`Você perdeu 1 vida. Vidas: ${state.lives}`);
+    render();
+    log(lines.join('\n')+'\n', true);
+    checkEnd();
+  }
+}
+
+function checkEnd(){
+  if(state.lives<=0){
+    state.alive=false;
+    log(`💀 Fim de run. Nível ${state.level} | Rompimentos ${state.breaks}.\n`, true);
+    render();
+  }
+}
+
+/* ===== Help / reward wiring ===== */
+function openHelp(){ document.getElementById('helpOverlay').style.display='flex'; }
+function closeHelp(){ document.getElementById('helpOverlay').style.display='none'; }
+
+document.getElementById('helpBtn').addEventListener('click', openHelp);
+document.getElementById('helpClose').addEventListener('click', closeHelp);
+document.getElementById('helpClose2').addEventListener('click', closeHelp);
+document.getElementById('helpOverlay').addEventListener('click', (e)=>{ if(e.target.id==='helpOverlay') closeHelp(); });
+
+document.getElementById('rewardSkip').addEventListener('click', ()=>{ hideRewards(); log('(debug) recompensa ignorada.\n', true); });
+
+document.getElementById('btnDraw').addEventListener('click', ()=>{ if(!state.alive||state.inReward) return; drawToHand(); render(); });
+document.getElementById('btnMulligan').addEventListener('click', ()=>{ if(!state.alive||state.inReward) return; mulligan(); render(); });
+document.getElementById('btnResolve').addEventListener('click', ()=> resolveRound());
+document.getElementById('btnClearAllRunes').addEventListener('click', ()=>{ if(!state.alive||state.inReward) return; clearAllRunesFromGridToDiscard(); });
+document.getElementById('btnReset').addEventListener('click', ()=> init());
+
+function log(msg, warn=false){
+  const el=document.getElementById('log');
+  el.textContent = (warn?'⚠️ ':'✅ ') + msg;
+}
+
+init();
+</script>
 </body>
 </html>
